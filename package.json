@@ -1,0 +1,21 @@
+{
+  "name": "pet-home-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Debug workspace for the pet-home mini program, official account page, and backend.",
+  "scripts": {
+    "dev": "nodemon server/src/server.js",
+    "start": "node server/src/server.js",
+    "check": "node scripts/check-js.js && node scripts/check-json.js && node scripts/check-miniapp.js",
+    "check:js": "node scripts/check-js.js",
+    "check:json": "node scripts/check-json.js",
+    "check:miniapp": "node scripts/check-miniapp.js",
+    "smoke": "node scripts/smoke-api.js",
+    "tunnel:start": "powershell -ExecutionPolicy Bypass -File scripts/start-tunnel.ps1",
+    "tunnel:restart": "powershell -ExecutionPolicy Bypass -File scripts/start-tunnel.ps1 -Restart",
+    "tunnel:stop": "powershell -ExecutionPolicy Bypass -File scripts/stop-tunnel.ps1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

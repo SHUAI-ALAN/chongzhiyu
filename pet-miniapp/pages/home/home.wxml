@@ -1,0 +1,77 @@
+<view class="page home-page">
+  <view class="hero">
+    <view class="hero-copy">
+      <view class="store-status">{{store.status || '营业中'}}</view>
+      <view class="brand-name">{{store.brandName || '宠之寓'}}</view>
+      <view class="brand-slogan">{{store.slogan || '把毛孩子的日常，安放得更妥帖'}}</view>
+      <button class="hero-button" bindtap="goBooking">马上预约</button>
+    </view>
+  </view>
+
+  <view class="notice card">
+    <view class="notice-title">门店公告</view>
+    <view class="notice-list" wx:if="{{activeNotices.length}}">
+      <view
+        class="notice-item {{item.level === 'important' ? 'important' : ''}}"
+        wx:for="{{activeNotices}}"
+        wx:key="id"
+      >
+        <view class="notice-item-title">{{item.title}}</view>
+        <view class="notice-text">{{item.content}}</view>
+      </view>
+    </view>
+    <view class="notice-text" wx:else>{{store.notice}}</view>
+  </view>
+
+  <view class="quick-grid">
+    <view class="quick-item card" wx:for="{{quickActions}}" wx:key="id" bindtap="handleQuickAction" data-id="{{item.id}}" data-path="{{item.path}}">
+      <view class="quick-icon">{{item.initial}}</view>
+      <view class="quick-label">{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">
+      <view class="section-title-main">推荐服务</view>
+      <view class="section-title-more" bindtap="goServices">全部服务</view>
+    </view>
+    <scroll-view scroll-x class="service-scroll" show-scrollbar="{{false}}">
+      <view class="service-card card" wx:for="{{featuredServices}}" wx:key="id" bindtap="goBookingWithService" data-id="{{item.id}}">
+        <image class="service-cover" src="{{item.cover}}" mode="aspectFill"></image>
+        <view class="service-body">
+          <view class="service-name">{{item.name}}</view>
+          <view class="service-summary">{{item.summary}}</view>
+          <view class="service-foot">
+            <view class="price">¥{{item.price}} <text>{{item.unit}}</text></view>
+            <view class="tag">{{item.durationText}}</view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="section today-card card">
+    <view>
+      <view class="today-title">{{store.bookingTipTitle || '今日附近可约'}}</view>
+      <view class="today-desc">{{store.bookingTipText || '热门服务建议提前 1 天预约，寄养建议提前 3 天沟通。'}}</view>
+    </view>
+    <button class="primary-button today-button" bindtap="goBooking">查看时段</button>
+  </view>
+
+  <view class="section">
+    <view class="section-title">
+      <view class="section-title-main">精选用品</view>
+      <view class="section-title-more" bindtap="goShop">去商城</view>
+    </view>
+    <view class="product-grid">
+      <view class="product-card card" wx:for="{{products}}" wx:key="id">
+        <image class="product-image" src="{{item.image}}" mode="aspectFill"></image>
+        <view class="product-name">{{item.name}}</view>
+        <view class="product-row">
+          <text class="price">¥{{item.price}}</text>
+          <text class="product-stock">库存 {{item.stock}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

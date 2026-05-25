@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>宠之寓 | 宠物洗护寄养会员服务</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="hero">
+      <nav class="nav">
+        <div class="brand">
+          <span class="brand-mark">寓</span>
+          <span id="navBrandName">宠之寓</span>
+        </div>
+        <div class="nav-actions">
+          <button class="nav-auth" id="authButton" type="button">登录 / 注册</button>
+        </div>
+      </nav>
+      <a href="tel:021-6688-8899" class="hero-phone" id="storePhoneLink">TEL:021-6688-8899</a>
+      <section class="hero-content">
+        <p class="eyebrow">微信预约 · 到店洗护 · 安心寄养</p>
+        <h1 id="heroBrandName">宠之寓</h1>
+        <p class="hero-copy" id="heroSlogan">把毛孩子的洗护、寄养、日常用品和会员服务放进一个更妥帖的微信入口。</p>
+        <div class="hero-actions">
+          <a class="primary-btn" href="#booking">立即预约</a>
+          <a class="secondary-btn" href="#services">查看服务</a>
+        </div>
+      </section>
+    </header>
+
+    <main>
+      <section class="notice-ticker" id="noticeBand" hidden>
+        <strong>门店公告</strong>
+        <div class="notice-track-wrap">
+          <div class="notice-track" id="noticeList"></div>
+        </div>
+      </section>
+
+      <section class="status-strip">
+        <div>
+          <strong id="storeStatus">营业中</strong>
+          <span id="storeHours">周一至周日 09:30-21:00</span>
+        </div>
+        <div>
+          <strong id="storePromoTitle">新客福利</strong>
+          <span id="storePromoText">首次洗护 9 折</span>
+        </div>
+        <div>
+          <strong>门店地址</strong>
+          <span id="storeAddress">加载中</span>
+        </div>
+      </section>
+
+      <section class="section" id="services">
+        <div class="section-heading">
+          <p class="eyebrow">Our Services</p>
+          <h2>常用服务</h2>
+        </div>
+        <div class="service-grid">
+          <article class="service-card">
+            <span>洗护美容</span>
+            <h3>元气基础洗护</h3>
+            <p>温和清洁、吹干梳理、耳眼护理、足底修剪。</p>
+            <strong>¥88 起</strong>
+          </article>
+          <article class="service-card">
+            <span>寄养托管</span>
+            <h3>猫咪独立寓所</h3>
+            <p>独立猫房、每日清洁、远程照片反馈。</p>
+            <strong>¥99 / 晚</strong>
+          </article>
+          <article class="service-card">
+            <span>健康护理</span>
+            <h3>日常健康护理</h3>
+            <p>指甲、耳道、泪痕、口腔观察等高频护理。</p>
+            <strong>¥58 起</strong>
+          </article>
+          <article class="service-card">
+            <span>训练咨询</span>
+            <h3>行为习惯咨询</h3>
+            <p>针对吠叫、分离焦虑、拆家做一对一建议。</p>
+            <strong>¥199 / 次</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="member-band">
+        <div>
+          <p class="eyebrow">Member</p>
+          <h2>会员权益更适合长期陪伴</h2>
+          <p>积分抵扣、生日礼、寄养房型优先、洗护档案记录，让每次到店都更顺手。</p>
+        </div>
+        <ul>
+          <li>消费 1 元积 1 分</li>
+          <li>每月专属护理券</li>
+          <li>寄养照片反馈</li>
+        </ul>
+      </section>
+
+      <section class="booking" id="booking">
+        <div>
+          <p class="eyebrow">Book Now</p>
+          <h2>选择服务和到店时间，门店会尽快确认</h2>
+          <p class="booking-copy">登录后会自动使用账号姓名和手机号，寄养服务可选择开始和结束时间段。</p>
+        </div>
+        <form id="subscribeForm">
+          <div class="form-grid">
+            <label>
+              <span>服务类目</span>
+              <select name="category" id="bookingCategory" required></select>
+            </label>
+            <label>
+              <span>宠物种类</span>
+              <select name="petType" required>
+                <option value="dog">狗狗</option>
+                <option value="cat">猫咪</option>
+                <option value="other">其他</option>
+              </select>
+            </label>
+            <label>
+              <span>宠物体重</span>
+              <input type="number" name="petWeight" min="0" step="0.1" placeholder="kg">
+            </label>
+            <label class="guest-field">
+              <span>姓名</span>
+              <input type="text" name="customerName" placeholder="请输入姓名" maxlength="24">
+            </label>
+            <label class="guest-field">
+              <span>联系方式</span>
+              <input type="tel" name="phone" placeholder="请输入手机号" maxlength="11">
+            </label>
+            <label class="single-time-field">
+              <span>预约时间</span>
+              <select name="dateTime" id="bookingDateTime" required></select>
+            </label>
+            <label class="boarding-field">
+              <span>开始时间</span>
+              <select name="startDateTime" id="boardingStartDateTime"></select>
+            </label>
+            <label class="boarding-field">
+              <span>结束时间</span>
+              <select name="endDateTime" id="boardingEndDateTime"></select>
+            </label>
+            <label class="full">
+              <span>备注</span>
+              <textarea name="remark" placeholder="可填写性格、护理要求、是否接送等" maxlength="160"></textarea>
+            </label>
+          </div>
+          <button type="submit">提交预约</button>
+          <p id="formMessage" class="form-message"></p>
+        </form>
+      </section>
+    </main>
+
+    <div class="auth-modal" id="authModal" hidden>
+      <div class="auth-dialog">
+        <button class="auth-close" id="authClose" type="button">×</button>
+        <p class="eyebrow">Account</p>
+        <h2 id="authTitle">登录</h2>
+        <form id="authForm">
+          <input type="text" name="accountName" placeholder="用户名" maxlength="24" required>
+          <input type="password" name="password" placeholder="密码" minlength="6" required>
+          <input class="register-only" type="tel" name="phone" placeholder="手机号" maxlength="11">
+          <button type="submit" id="authSubmit">登录</button>
+          <button class="link-button" id="authModeToggle" type="button">没有账号？去注册</button>
+          <p id="authMessage" class="form-message"></p>
+        </form>
+      </div>
+    </div>
+
+    <div class="auth-modal" id="profileModal" hidden>
+      <div class="profile-dialog">
+        <button class="auth-close" id="profileClose" type="button">×</button>
+        <p class="eyebrow">Profile</p>
+        <h2>个人中心</h2>
+        <div class="profile-summary" id="profileSummary"></div>
+
+        <section class="profile-panel">
+          <div class="panel-title">
+            <h3>预约记录</h3>
+            <span id="profileBookingCount">0 条</span>
+          </div>
+          <div class="profile-list" id="profileBookings"></div>
+        </section>
+
+        <section class="profile-panel">
+          <div class="panel-title">
+            <h3>消费记录</h3>
+            <span id="profileOrderCount">0 条</span>
+          </div>
+          <div class="profile-list" id="profileOrders"></div>
+        </section>
+
+        <div class="profile-actions">
+          <button type="button" id="showPhoneFormButton">修改手机号</button>
+          <button type="button" id="showPasswordFormButton">修改密码</button>
+          <button type="button" id="logoutButton">退出登录</button>
+        </div>
+
+        <div class="profile-forms">
+          <form id="phoneForm" hidden>
+            <h3>修改手机号</h3>
+            <input type="tel" name="phone" placeholder="新手机号" maxlength="11" required>
+            <button type="submit">保存手机号</button>
+          </form>
+          <form id="passwordForm" hidden>
+            <h3>修改密码</h3>
+            <input type="password" name="currentPassword" placeholder="原密码" required>
+            <input type="password" name="newPassword" placeholder="新密码，至少 6 位" minlength="6" required>
+            <input type="password" name="confirmPassword" placeholder="再次输入新密码" minlength="6" required>
+            <button type="submit">保存密码</button>
+          </form>
+        </div>
+        <p id="profileMessage" class="form-message"></p>
+      </div>
+    </div>
+
+    <script src="./scripts.js"></script>
+  </body>
+</html>

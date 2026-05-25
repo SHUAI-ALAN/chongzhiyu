@@ -1,0 +1,79 @@
+<view class="page booking-page">
+  <view class="booking-head">
+    <view class="heading-kicker">Booking</view>
+    <view class="heading-title">预约到店服务</view>
+    <view class="heading-desc">提交后门店会确认服务细节和到店时间。</view>
+  </view>
+
+  <view class="form-card card">
+    <view class="field">
+      <view class="field-label">服务项目</view>
+      <picker mode="selector" range="{{serviceNames}}" value="{{serviceIndex}}" bindchange="handleServiceChange">
+        <view class="picker-value">{{selectedService.name || '请选择服务'}}</view>
+      </picker>
+    </view>
+
+    <view class="field-grid">
+      <view class="field">
+        <view class="field-label">宠物昵称</view>
+        <input value="{{form.petName}}" data-field="petName" bindinput="handleInput" placeholder="例如 团团"></input>
+      </view>
+      <view class="field">
+        <view class="field-label">宠物类型</view>
+        <picker mode="selector" range="{{petTypes}}" value="{{petTypeIndex}}" bindchange="handlePetTypeChange">
+          <view class="picker-value">{{petTypes[petTypeIndex]}}</view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="field-grid">
+      <view class="field">
+        <view class="field-label">联系人</view>
+        <input value="{{form.customerName}}" data-field="customerName" bindinput="handleInput" placeholder="怎么称呼你"></input>
+      </view>
+      <view class="field">
+        <view class="field-label">手机号</view>
+        <input type="number" value="{{form.phone}}" data-field="phone" bindinput="handleInput" placeholder="用于确认预约"></input>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="field-label">预约日期</view>
+      <scroll-view scroll-x class="date-scroll" show-scrollbar="{{false}}">
+        <view
+          class="date-pill {{selectedDate === item.date ? 'active' : ''}}"
+          wx:for="{{slots}}"
+          wx:key="date"
+          data-date="{{item.date}}"
+          bindtap="selectDate"
+        >
+          <text>{{item.label}}</text>
+          <text>{{item.weekday}}</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="field">
+      <view class="field-label">可约时段</view>
+      <view class="time-grid">
+        <view
+          class="time-pill {{selectedTime === item.time ? 'active' : ''}} {{!item.available ? 'disabled' : ''}}"
+          wx:for="{{times}}"
+          wx:key="time"
+          data-time="{{item.time}}"
+          data-available="{{item.available}}"
+          bindtap="selectTime"
+        >
+          {{item.time}}
+        </view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="field-label">备注</view>
+      <textarea value="{{form.remark}}" data-field="remark" bindinput="handleInput" placeholder="性格、过敏、护理偏好等"></textarea>
+    </view>
+
+    <button class="primary-button submit-button" loading="{{submitting}}" bindtap="submitBooking">提交预约</button>
+  </view>
+</view>

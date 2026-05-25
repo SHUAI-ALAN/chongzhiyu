@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="page-heading">
+    <view>
+      <view class="heading-kicker">Services</view>
+      <view class="heading-title">选择适合毛孩子的服务</view>
+    </view>
+    <button class="heading-action" bindtap="goBooking">预约</button>
+  </view>
+
+  <scroll-view scroll-x class="category-scroll" show-scrollbar="{{false}}">
+    <view
+      class="category-pill {{activeCategory === item.id ? 'active' : ''}}"
+      wx:for="{{categories}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="selectCategory"
+    >
+      {{item.name}}
+    </view>
+  </scroll-view>
+
+  <view class="service-list">
+    <view class="service-item card" wx:for="{{services}}" wx:key="id">
+      <image class="service-image" src="{{item.cover}}" mode="aspectFill"></image>
+      <view class="service-content">
+        <view class="service-top">
+          <view>
+            <view class="service-name">{{item.name}}</view>
+            <view class="service-suitable">{{item.suitable}}</view>
+          </view>
+          <view class="price">¥{{item.price}}<text>{{item.unit}}</text></view>
+        </view>
+        <view class="service-summary">{{item.summary}}</view>
+        <view class="tag-row">
+          <view class="tag" wx:for="{{item.tags}}" wx:key="*this">{{item}}</view>
+        </view>
+        <view class="service-bottom">
+          <view class="muted">约 {{item.durationText}}</view>
+          <button class="book-button" bindtap="bookService" data-id="{{item.id}}">预约</button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,46 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/services/services",
+    "pages/booking/booking",
+    "pages/shop/shop",
+    "pages/profile/profile"
+  ],
+  "window": {
+    "navigationBarTitleText": "宠之寓",
+    "navigationBarBackgroundColor": "#fff8ef",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fff8ef",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#6b7680",
+    "selectedColor": "#f97361",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/services/services",
+        "text": "服务"
+      },
+      {
+        "pagePath": "pages/booking/booking",
+        "text": "预约"
+      },
+      {
+        "pagePath": "pages/shop/shop",
+        "text": "商城"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,162 @@
+.member-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 250rpx;
+  padding: 34rpx;
+  color: #ffffff;
+  background:
+    linear-gradient(135deg, rgba(38, 50, 56, 0.96), rgba(37, 182, 164, 0.84)),
+    url("https://images.unsplash.com/photo-1601758125946-6ec2ef64daf8?auto=format&fit=crop&w=1000&q=80") center/cover;
+  border-radius: 28rpx;
+}
+
+.member-kicker {
+  color: #a9fff2;
+  font-size: 22rpx;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.member-name {
+  margin-top: 14rpx;
+  font-size: 42rpx;
+  font-weight: 900;
+}
+
+.member-level {
+  margin-top: 12rpx;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 25rpx;
+}
+
+.member-badge {
+  display: grid;
+  width: 96rpx;
+  height: 96rpx;
+  place-items: center;
+  color: #263238;
+  font-size: 44rpx;
+  font-weight: 900;
+  background: #ffffff;
+  border-radius: 28rpx;
+}
+
+.pet-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+}
+
+.pet-card {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 22rpx;
+}
+
+.pet-avatar {
+  display: grid;
+  width: 66rpx;
+  height: 66rpx;
+  place-items: center;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 900;
+  background: #f97361;
+  border-radius: 22rpx;
+}
+
+.pet-name {
+  margin-bottom: 8rpx;
+  color: #263238;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.order-list {
+  overflow: hidden;
+}
+
+.order-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 24rpx;
+  border-bottom: 1rpx solid rgba(38, 50, 56, 0.06);
+}
+
+.order-item:last-child {
+  border-bottom: 0;
+}
+
+.order-title {
+  margin-bottom: 8rpx;
+  color: #263238;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.order-right {
+  text-align: right;
+}
+
+.status {
+  margin-top: 6rpx;
+  color: #25b6a4;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.coupon-list {
+  display: grid;
+  gap: 16rpx;
+}
+
+.coupon-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 130rpx;
+  padding: 24rpx;
+  color: #ffffff;
+  background: #f97361;
+  border-radius: 18rpx;
+}
+
+.coupon-title {
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.coupon-desc {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 23rpx;
+}
+
+.coupon-discount {
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.contact-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22rpx;
+  padding: 26rpx;
+}
+
+.contact-title {
+  margin-bottom: 10rpx;
+  color: #263238;
+  font-size: 30rpx;
+  font-weight: 900;
+}
+
+.contact-button {
+  width: 190rpx;
+  flex: 0 0 auto;
+}

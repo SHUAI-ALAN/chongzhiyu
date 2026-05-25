@@ -1,0 +1,67 @@
+<view class="page">
+  <view class="member-card">
+    <view>
+      <view class="member-kicker">Member</view>
+      <view class="member-name">{{member.name || '宠友'}}</view>
+      <view class="member-level">{{member.level || '银爪会员'}} · {{member.points || 0}} 积分</view>
+    </view>
+    <view class="member-badge">寓</view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">
+      <view class="section-title-main">宠物档案</view>
+    </view>
+    <view class="pet-list">
+      <view class="pet-card card" wx:for="{{member.pets}}" wx:key="id">
+        <view class="pet-avatar">{{item.initial}}</view>
+        <view>
+          <view class="pet-name">{{item.name}}</view>
+          <view class="muted">{{item.breed}} · {{item.age}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">
+      <view class="section-title-main">近期订单</view>
+    </view>
+    <view class="order-list card">
+      <view class="order-item" wx:for="{{orders}}" wx:key="id">
+        <view>
+          <view class="order-title">{{item.title}}</view>
+          <view class="muted">{{item.date}}</view>
+        </view>
+        <view class="order-right">
+          <view class="price">¥{{item.amount}}</view>
+          <view class="status">{{item.status}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-title">
+      <view class="section-title-main">优惠券</view>
+    </view>
+    <view class="coupon-list">
+      <view class="coupon-card" wx:for="{{coupons}}" wx:key="id">
+        <view>
+          <view class="coupon-title">{{item.title}}</view>
+          <view class="coupon-desc">有效期至 {{item.validTo}}</view>
+        </view>
+        <view class="coupon-discount">{{item.discount}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section contact-card card">
+    <view>
+      <view class="contact-title">{{store.brandName || '宠之寓'}}</view>
+      <view class="muted">{{store.address}}</view>
+      <view class="muted">{{store.openingHours}}</view>
+    </view>
+    <button class="primary-button contact-button" bindtap="callStore">联系门店</button>
+  </view>
+</view>
