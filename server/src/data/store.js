@@ -128,6 +128,74 @@ const services = [
   }
 ];
 
+const petSizeOptions = [
+  {
+    id: 'small',
+    name: '小型',
+    ranges: { dog: '7kg 以下', cat: '4kg 以下', other: '5kg 以下' },
+    hint: '适合小体型、幼宠或轻量宠物'
+  },
+  {
+    id: 'medium',
+    name: '中型',
+    ranges: { dog: '7-18kg', cat: '4-7kg', other: '5-15kg' },
+    hint: '多数家庭宠物常见体型'
+  },
+  {
+    id: 'large',
+    name: '大型',
+    ranges: { dog: '18kg 以上', cat: '7kg 以上', other: '15kg 以上' },
+    hint: '毛量、耗时和护理强度更高'
+  }
+];
+
+const servicePriceRules = {
+  sizeDeltas: {
+    small: 0,
+    medium: 40,
+    large: 80
+  },
+  typeDeltasByCategory: {
+    grooming: { dog: 0, cat: 20, other: 30 },
+    boarding: { dog: 0, cat: 0, other: 30 },
+    health: { dog: 0, cat: 0, other: 20 },
+    training: { dog: 0, cat: 50, other: 50 }
+  }
+};
+
+function calculateServicePrice(service, petType = 'dog', petSize = 'small') {
+  if (!service) {
+    return 0;
+  }
+  const normalizedType = ['dog', 'cat', 'other'].includes(petType) ? petType : 'other';
+  const normalizedSize = petSizeOptions.some((item) => item.id === petSize) ? petSize : 'small';
+  const typeDeltas = servicePriceRules.typeDeltasByCategory[service.category] || {};
+  const amount = Number(service.price || 0)
+    + Number(servicePriceRules.sizeDeltas[normalizedSize] || 0)
+    + Number(typeDeltas[normalizedType] || 0);
+  return Math.max(0, Math.round(amount));
+}
+
+function inferPetSizeByWeight(petType = 'dog', weight = '') {
+  const value = Number(weight);
+  if (!Number.isFinite(value) || value <= 0) {
+    return '';
+  }
+  if (petType === 'cat') {
+    if (value < 4) return 'small';
+    if (value < 7) return 'medium';
+    return 'large';
+  }
+  if (petType === 'dog') {
+    if (value < 7) return 'small';
+    if (value < 18) return 'medium';
+    return 'large';
+  }
+  if (value < 5) return 'small';
+  if (value < 15) return 'medium';
+  return 'large';
+}
+
 const productCategories = [
   { id: 'all', name: '全部' },
   { id: 'food', name: '主粮零食' },
@@ -259,6 +327,10 @@ module.exports = {
   storeConfig,
   serviceCategories,
   services,
+  petSizeOptions,
+  servicePriceRules,
+  calculateServicePrice,
+  inferPetSizeByWeight,
   productCategories,
   products,
   coupons,

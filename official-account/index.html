@@ -151,6 +151,14 @@
           <p id="formMessage" class="form-message"></p>
         </form>
       </section>
+
+      <section class="account-entry" id="accountEntry" hidden>
+        <div>
+          <p class="eyebrow">My Account</p>
+          <h2>查看订单、余额和宠物档案</h2>
+        </div>
+        <a class="primary-btn" href="./account.html">服务中心</a>
+      </section>
     </main>
 
     <div class="auth-modal" id="authModal" hidden>
@@ -169,53 +177,6 @@
       </div>
     </div>
 
-    <div class="auth-modal" id="profileModal" hidden>
-      <div class="profile-dialog">
-        <button class="auth-close" id="profileClose" type="button">×</button>
-        <p class="eyebrow">Profile</p>
-        <h2>个人中心</h2>
-        <div class="profile-summary" id="profileSummary"></div>
-
-        <section class="profile-panel">
-          <div class="panel-title">
-            <h3>预约记录</h3>
-            <span id="profileBookingCount">0 条</span>
-          </div>
-          <div class="profile-list" id="profileBookings"></div>
-        </section>
-
-        <section class="profile-panel">
-          <div class="panel-title">
-            <h3>消费记录</h3>
-            <span id="profileOrderCount">0 条</span>
-          </div>
-          <div class="profile-list" id="profileOrders"></div>
-        </section>
-
-        <div class="profile-actions">
-          <button type="button" id="showPhoneFormButton">修改手机号</button>
-          <button type="button" id="showPasswordFormButton">修改密码</button>
-          <button type="button" id="logoutButton">退出登录</button>
-        </div>
-
-        <div class="profile-forms">
-          <form id="phoneForm" hidden>
-            <h3>修改手机号</h3>
-            <input type="tel" name="phone" placeholder="新手机号" maxlength="11" required>
-            <button type="submit">保存手机号</button>
-          </form>
-          <form id="passwordForm" hidden>
-            <h3>修改密码</h3>
-            <input type="password" name="currentPassword" placeholder="原密码" required>
-            <input type="password" name="newPassword" placeholder="新密码，至少 6 位" minlength="6" required>
-            <input type="password" name="confirmPassword" placeholder="再次输入新密码" minlength="6" required>
-            <button type="submit">保存密码</button>
-          </form>
-        </div>
-        <p id="profileMessage" class="form-message"></p>
-      </div>
-    </div>
-
-    <script src="./scripts.js"></script>
+    <script src="./home.js"></script>
   </body>
 </html>

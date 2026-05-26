@@ -6,6 +6,7 @@ const {
   bookings: seedBookings,
   member: seedMember,
   orders: seedOrders,
+  services: seedServices,
   storeConfig
 } = require('./store');
 
@@ -103,6 +104,11 @@ db.exec(`
     time TEXT NOT NULL,
     remark TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL,
+    amount REAL NOT NULL DEFAULT 0,
+    payment_status TEXT NOT NULL DEFAULT 'unpaid',
+    payment_method TEXT NOT NULL DEFAULT '',
+    paid_at TEXT,
+    completed_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT
   );
@@ -125,6 +131,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS member_orders (
     id TEXT PRIMARY KEY,
     member_id TEXT NOT NULL,
+    booking_id TEXT NOT NULL DEFAULT '',
     phone TEXT NOT NULL,
     title TEXT NOT NULL,
     amount REAL NOT NULL DEFAULT 0,
@@ -162,6 +169,15 @@ db.exec(`
     created_at TEXT NOT NULL,
     updated_at TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS admin_sessions (
+    token TEXT PRIMARY KEY,
+    admin_id TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT,
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+  );
 `);
 
 function ensureColumn(tableName, columnName, definition) {
@@ -172,6 +188,12 @@ function ensureColumn(tableName, columnName, definition) {
 }
 
 ensureColumn('members', 'password_hash', 'TEXT');
+ensureColumn('bookings', 'amount', 'REAL NOT NULL DEFAULT 0');
+ensureColumn('bookings', 'payment_status', "TEXT NOT NULL DEFAULT 'unpaid'");
+ensureColumn('bookings', 'payment_method', "TEXT NOT NULL DEFAULT ''");
+ensureColumn('bookings', 'paid_at', 'TEXT');
+ensureColumn('bookings', 'completed_at', 'TEXT');
+ensureColumn('member_orders', 'booking_id', "TEXT NOT NULL DEFAULT ''");
 
 function ensureDefaultAdmin() {
   const row = db.prepare('SELECT COUNT(*) AS count FROM admins').get();
@@ -210,10 +232,12 @@ function seedDatabase() {
   const insertBooking = db.prepare(`
     INSERT INTO bookings (
       id, service_id, service_name, pet_name, pet_type, customer_name, phone,
-      date, time, remark, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      date, time, remark, status, amount, payment_status, payment_method, paid_at,
+      completed_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   for (const booking of state.bookings) {
+    const service = seedServices.find((item) => item.id === booking.serviceId);
     insertBooking.run(
       booking.id,
       booking.serviceId,
@@ -226,6 +250,11 @@ function seedDatabase() {
       booking.time,
       booking.remark || '',
       booking.status,
+      Number(booking.amount ?? service?.price ?? 0),
+      booking.paymentStatus || 'unpaid',
+      booking.paymentMethod || '',
+      booking.paidAt || null,
+      booking.completedAt || null,
       booking.createdAt || new Date().toISOString(),
       booking.updatedAt || null
     );
@@ -256,13 +285,14 @@ function seedDatabase() {
 
   const insertOrder = db.prepare(`
     INSERT INTO member_orders (
-      id, member_id, phone, title, amount, status, date, remark, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, member_id, booking_id, phone, title, amount, status, date, remark, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   for (const order of state.memberOrders) {
     insertOrder.run(
       order.id,
       order.memberId,
+      order.bookingId || '',
       order.phone,
       order.title,
       Number(order.amount || 0),
@@ -321,6 +351,11 @@ function toBooking(row) {
     time: row.time,
     remark: row.remark,
     status: row.status,
+    amount: Number(row.amount || 0),
+    paymentStatus: row.payment_status || 'unpaid',
+    paymentMethod: row.payment_method || '',
+    paidAt: row.paid_at || undefined,
+    completedAt: row.completed_at || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at || undefined
   };
@@ -347,6 +382,7 @@ function toMemberOrder(row) {
   return {
     id: row.id,
     memberId: row.member_id,
+    bookingId: row.booking_id || '',
     phone: row.phone,
     title: row.title,
     amount: Number(row.amount || 0),
@@ -430,16 +466,23 @@ function listBookings(filters = {}) {
   if (where.length) {
     sql += ` WHERE ${where.join(' AND ')}`;
   }
-  sql += ' ORDER BY date DESC, time DESC';
+  sql += ' ORDER BY created_at DESC, date DESC, time DESC';
   return db.prepare(sql).all(...params).map(toBooking);
 }
 
+function getBooking(id) {
+  const row = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
+  return row ? toBooking(row) : null;
+}
+
 function addBooking(booking) {
+  const service = seedServices.find((item) => item.id === booking.serviceId);
   db.prepare(`
     INSERT INTO bookings (
       id, service_id, service_name, pet_name, pet_type, customer_name, phone,
-      date, time, remark, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      date, time, remark, status, amount, payment_status, payment_method, paid_at,
+      completed_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     booking.id,
     booking.serviceId,
@@ -452,17 +495,46 @@ function addBooking(booking) {
     booking.time,
     booking.remark || '',
     booking.status,
+    Number(booking.amount ?? service?.price ?? 0),
+    booking.paymentStatus || 'unpaid',
+    booking.paymentMethod || '',
+    booking.paidAt || null,
+    booking.completedAt || null,
     booking.createdAt || new Date().toISOString(),
     booking.updatedAt || null
   );
-  return booking;
+  return getBooking(booking.id);
 }
 
 function updateBookingStatus(id, status) {
   const now = new Date().toISOString();
-  db.prepare('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
-  const row = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
-  return row ? toBooking(row) : null;
+  const booking = getBooking(id);
+  if (!booking) {
+    return null;
+  }
+  const completedAt = status === 'completed'
+    ? (booking.completedAt || now)
+    : booking.completedAt || null;
+  db.prepare('UPDATE bookings SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?')
+    .run(status, completedAt, now, id);
+  return getBooking(id);
+}
+
+function updateBookingPayment(id, payload) {
+  const booking = getBooking(id);
+  if (!booking) {
+    return null;
+  }
+  const paymentStatus = payload.paymentStatus === 'paid' ? 'paid' : 'unpaid';
+  const paymentMethod = paymentStatus === 'paid' ? String(payload.paymentMethod || '').trim() : '';
+  const paidAt = paymentStatus === 'paid' ? (payload.paidAt || new Date().toISOString()) : null;
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE bookings
+    SET payment_status = ?, payment_method = ?, paid_at = ?, updated_at = ?
+    WHERE id = ?
+  `).run(paymentStatus, paymentMethod, paidAt, now, id);
+  return getBooking(id);
 }
 
 function listMembers() {
@@ -565,6 +637,9 @@ function updateMember(id, payload) {
   if (Object.prototype.hasOwnProperty.call(payload, 'points')) {
     nextMember.points = Number(payload.points || 0);
   }
+  if (Object.prototype.hasOwnProperty.call(payload, 'pets')) {
+    nextMember.pets = Array.isArray(payload.pets) ? payload.pets : [];
+  }
   if (Object.prototype.hasOwnProperty.call(payload, 'password')) {
     nextMember.passwordHash = hashPassword(String(payload.password || ''));
   }
@@ -572,7 +647,7 @@ function updateMember(id, payload) {
   db.prepare(`
     UPDATE members SET
       account_name = ?, name = ?, phone = ?, level = ?, balance = ?,
-      points = ?, password_hash = ?, remark = ?, updated_at = ?
+      points = ?, password_hash = ?, pets_json = ?, remark = ?, updated_at = ?
     WHERE id = ?
   `).run(
     nextMember.accountName,
@@ -582,11 +657,62 @@ function updateMember(id, payload) {
     nextMember.balance,
     nextMember.points,
     nextMember.passwordHash || null,
+    JSON.stringify(nextMember.pets || []),
     nextMember.remark,
     nextMember.updatedAt,
     id
   );
   return getMember(id);
+}
+
+function addMemberPet(memberId, payload) {
+  const member = getMember(memberId);
+  if (!member) {
+    return null;
+  }
+  const pet = {
+    id: createId('pet'),
+    name: String(payload.name || '').trim(),
+    type: String(payload.type || '').trim(),
+    breed: String(payload.breed || '').trim(),
+    age: String(payload.age || '').trim(),
+    weight: String(payload.weight || '').trim(),
+    lastGroomedAt: String(payload.lastGroomedAt || '').trim(),
+    photo: String(payload.photo || '').trim(),
+    createdAt: new Date().toISOString()
+  };
+  const pets = [pet, ...(member.pets || [])];
+  return updateMember(memberId, { pets });
+}
+
+function updateMemberPet(memberId, petId, payload) {
+  const member = getMember(memberId);
+  if (!member) {
+    return null;
+  }
+  const pets = (member.pets || []).map((pet) => {
+    if (pet.id !== petId) {
+      return pet;
+    }
+    const nextPet = { ...pet };
+    for (const field of ['name', 'type', 'breed', 'age', 'weight', 'lastGroomedAt', 'photo']) {
+      if (Object.prototype.hasOwnProperty.call(payload, field)) {
+        nextPet[field] = String(payload[field] || '').trim();
+      }
+    }
+    nextPet.updatedAt = new Date().toISOString();
+    return nextPet;
+  });
+  return updateMember(memberId, { pets });
+}
+
+function deleteMemberPet(memberId, petId) {
+  const member = getMember(memberId);
+  if (!member) {
+    return null;
+  }
+  const pets = (member.pets || []).filter((pet) => pet.id !== petId);
+  return updateMember(memberId, { pets });
 }
 
 function deleteMember(id) {
@@ -617,7 +743,7 @@ function listMemberOrders(filters = {}) {
   if (where.length) {
     sql += ` WHERE ${where.join(' AND ')}`;
   }
-  sql += ' ORDER BY date DESC, created_at DESC';
+  sql += ' ORDER BY created_at DESC, date DESC';
   return db.prepare(sql).all(...params).map(toMemberOrder);
 }
 
@@ -630,6 +756,7 @@ function addMemberOrder(payload) {
   const order = {
     id: createId('ord'),
     memberId: member.id,
+    bookingId: String(payload.bookingId || '').trim(),
     phone: member.phone,
     title: String(payload.title || '').trim(),
     amount: Number(payload.amount || 0),
@@ -641,11 +768,12 @@ function addMemberOrder(payload) {
   };
   db.prepare(`
     INSERT INTO member_orders (
-      id, member_id, phone, title, amount, status, date, remark, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, member_id, booking_id, phone, title, amount, status, date, remark, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     order.id,
     order.memberId,
+    order.bookingId,
     order.phone,
     order.title,
     order.amount,
@@ -831,6 +959,44 @@ function updateAdminPassword(id, password) {
   return getAdmin(id);
 }
 
+function addAdminSession(token, adminId, expiresAt) {
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT OR REPLACE INTO admin_sessions (token, admin_id, expires_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(token, adminId, Number(expiresAt), now, now);
+  return getAdminSession(token);
+}
+
+function getAdminSession(token) {
+  const row = db.prepare('SELECT * FROM admin_sessions WHERE token = ?').get(token);
+  if (!row) {
+    return null;
+  }
+  return {
+    token: row.token,
+    adminId: row.admin_id,
+    expiresAt: Number(row.expires_at),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at || undefined
+  };
+}
+
+function updateAdminSession(token, expiresAt) {
+  const now = new Date().toISOString();
+  db.prepare('UPDATE admin_sessions SET expires_at = ?, updated_at = ? WHERE token = ?')
+    .run(Number(expiresAt), now, token);
+  return getAdminSession(token);
+}
+
+function deleteAdminSession(token) {
+  db.prepare('DELETE FROM admin_sessions WHERE token = ?').run(token);
+}
+
+function deleteExpiredAdminSessions(now = Date.now()) {
+  db.prepare('DELETE FROM admin_sessions WHERE expires_at < ?').run(Number(now));
+}
+
 function resetRuntimeState(nextState = defaultState) {
   db.exec('DELETE FROM member_orders; DELETE FROM bookings; DELETE FROM members; DELETE FROM subscribers; DELETE FROM notices; DELETE FROM store_profile;');
   const insertStore = db.prepare('INSERT INTO store_profile (key, value) VALUES (?, ?)');
@@ -869,8 +1035,10 @@ module.exports = {
   getStoreProfile,
   updateStoreProfile,
   listBookings,
+  getBooking,
   addBooking,
   updateBookingStatus,
+  updateBookingPayment,
   listMembers,
   getPrimaryMember,
   getMemberByPhone,
@@ -878,6 +1046,9 @@ module.exports = {
   registerUser,
   verifyPassword,
   updateMember,
+  addMemberPet,
+  updateMemberPet,
+  deleteMemberPet,
   deleteMember,
   clearUsers,
   listMemberOrders,
@@ -893,5 +1064,10 @@ module.exports = {
   getAdminByUsername,
   getAdmin,
   updateAdminPassword,
+  addAdminSession,
+  getAdminSession,
+  updateAdminSession,
+  deleteAdminSession,
+  deleteExpiredAdminSessions,
   resetRuntimeState
 };

@@ -13,19 +13,7 @@ const authTitle = document.querySelector('#authTitle');
 const authSubmit = document.querySelector('#authSubmit');
 const authModeToggle = document.querySelector('#authModeToggle');
 const authMessage = document.querySelector('#authMessage');
-const profileModal = document.querySelector('#profileModal');
-const profileClose = document.querySelector('#profileClose');
-const profileSummary = document.querySelector('#profileSummary');
-const profileBookings = document.querySelector('#profileBookings');
-const profileOrders = document.querySelector('#profileOrders');
-const profileBookingCount = document.querySelector('#profileBookingCount');
-const profileOrderCount = document.querySelector('#profileOrderCount');
-const phoneForm = document.querySelector('#phoneForm');
-const passwordForm = document.querySelector('#passwordForm');
-const showPhoneFormButton = document.querySelector('#showPhoneFormButton');
-const showPasswordFormButton = document.querySelector('#showPasswordFormButton');
-const logoutButton = document.querySelector('#logoutButton');
-const profileMessage = document.querySelector('#profileMessage');
+const accountEntry = document.querySelector('#accountEntry');
 
 const storeFields = {
   navBrandName: document.querySelector('#navBrandName'),
@@ -51,9 +39,7 @@ let authMode = 'login';
 let currentUser = null;
 
 function setText(node, value) {
-  if (node && value) {
-    node.textContent = value;
-  }
+  if (node && value) node.textContent = value;
 }
 
 function escapeHtml(value) {
@@ -69,39 +55,17 @@ function optionHtml(value, label) {
   return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
 }
 
-function formatMoney(value) {
-  return `¥${Number(value || 0).toFixed(2)}`;
-}
-
-function formatDateTime(date, time) {
-  return [date, time].filter(Boolean).join(' ');
-}
-
-function renderNotices(notices = []) {
-  const activeNotices = notices.filter((notice) => notice.enabled !== false);
-  if (!storeFields.noticeBand || !storeFields.noticeList || !activeNotices.length) {
-    return;
-  }
-
-  storeFields.noticeBand.hidden = false;
-  storeFields.noticeList.innerHTML = activeNotices.map((notice) => `
-    <span class="notice-item ${notice.level === 'important' ? 'important' : ''}">
-      ${escapeHtml(notice.title)}：${escapeHtml(notice.content)}
-    </span>
-  `).join('');
-}
-
 function setCurrentUser(user) {
-  if (!user) {
-    currentUser = null;
+  currentUser = user || null;
+  if (!currentUser) {
     window.localStorage.removeItem('petHomeUser');
     authButton.textContent = '登录 / 注册';
-    updateGuestFields();
-    return;
+    accountEntry.hidden = true;
+  } else {
+    window.localStorage.setItem('petHomeUser', JSON.stringify(currentUser));
+    authButton.textContent = `${currentUser.accountName || currentUser.name} · 服务中心`;
+    accountEntry.hidden = false;
   }
-  currentUser = user;
-  window.localStorage.setItem('petHomeUser', JSON.stringify(user));
-  authButton.textContent = `${user.accountName || user.name} · 个人中心`;
   updateGuestFields();
 }
 
@@ -133,106 +97,19 @@ function setAuthMode(nextMode) {
   phoneInput.required = isRegister;
   phoneInput.disabled = !isRegister;
   phoneInput.hidden = !isRegister;
-  if (!isRegister) {
-    phoneInput.value = '';
-  }
+  if (!isRegister) phoneInput.value = '';
   authMessage.textContent = '';
 }
 
-function renderProfile(profile) {
-  const user = profile.user || currentUser;
-  const bookings = profile.bookings || [];
-  const orders = profile.orders || [];
-
-  profileSummary.innerHTML = `
-    <div>
-      <span>用户名</span>
-      <strong>${escapeHtml(user.accountName || user.name)}</strong>
-    </div>
-    <div>
-      <span>姓名</span>
-      <strong>${escapeHtml(user.name || '-')}</strong>
-    </div>
-    <div>
-      <span>手机号</span>
-      <strong>${escapeHtml(user.phone || '-')}</strong>
-    </div>
-    <div>
-      <span>等级</span>
-      <strong>${escapeHtml(user.level || user.userTypeLabel || '-')}</strong>
-    </div>
-    <div>
-      <span>余额</span>
-      <strong>${formatMoney(user.balance)}</strong>
-    </div>
-    <div>
-      <span>积分</span>
-      <strong>${Number(user.points || 0)}</strong>
-    </div>
-  `;
-
-  profileBookingCount.textContent = `${bookings.length} 条`;
-  profileBookings.innerHTML = bookings.length ? bookings.map((booking) => `
-    <article class="profile-item">
-      <div>
-        <strong>${escapeHtml(booking.serviceName || '预约')}</strong>
-        <span>${escapeHtml(formatDateTime(booking.date, booking.time))}</span>
-      </div>
-      <em>${escapeHtml(booking.statusLabel || booking.status || '')}</em>
-      ${booking.remark ? `<p>${escapeHtml(booking.remark)}</p>` : ''}
-    </article>
-  `).join('') : '<p class="empty-text">暂无预约记录</p>';
-
-  profileOrderCount.textContent = `${orders.length} 条`;
-  profileOrders.innerHTML = orders.length ? orders.map((order) => `
-    <article class="profile-item">
-      <div>
-        <strong>${escapeHtml(order.title || '消费记录')}</strong>
-        <span>${escapeHtml(order.date || order.createdAt || '')}</span>
-      </div>
-      <em>${formatMoney(order.amount)}</em>
-      ${order.remark ? `<p>${escapeHtml(order.remark)}</p>` : ''}
-    </article>
-  `).join('') : '<p class="empty-text">暂无消费记录</p>';
-}
-
-function hideProfileForms() {
-  phoneForm.hidden = true;
-  passwordForm.hidden = true;
-  phoneForm.reset();
-  passwordForm.reset();
-}
-
-async function loadProfile() {
-  if (!currentUser) {
-    return;
-  }
-  profileMessage.textContent = '';
-  const response = await fetch(`/api/user/profile?userId=${encodeURIComponent(currentUser.id)}`);
-  const result = await response.json();
-  if (!response.ok || result.code !== 0) {
-    throw new Error(result.message || '个人信息加载失败');
-  }
-  setCurrentUser(result.data.user);
-  renderProfile(result.data);
-}
-
-async function openProfile() {
-  if (!currentUser) {
-    authModal.hidden = false;
-    setAuthMode('login');
-    return;
-  }
-  profileModal.hidden = false;
-  hideProfileForms();
-  profileSummary.innerHTML = '<p class="empty-text">加载中...</p>';
-  profileBookings.innerHTML = '';
-  profileOrders.innerHTML = '';
-  try {
-    await loadProfile();
-  } catch (error) {
-    profileMessage.textContent = error.message || '个人信息加载失败';
-  }
+function renderNotices(notices = []) {
+  const activeNotices = notices.filter((notice) => notice.enabled !== false);
+  if (!storeFields.noticeBand || !storeFields.noticeList || !activeNotices.length) return;
+  storeFields.noticeBand.hidden = false;
+  storeFields.noticeList.innerHTML = activeNotices.map((notice) => `
+    <span class="notice-item ${notice.level === 'important' ? 'important' : ''}">
+      ${escapeHtml(notice.title)}：${escapeHtml(notice.content)}
+    </span>
+  `).join('');
 }
 
 function applyStoreConfig(store) {
@@ -244,16 +121,13 @@ function applyStoreConfig(store) {
   setText(storeFields.storeAddress, store.address);
   setText(storeFields.storePromoTitle, store.promoTitle);
   setText(storeFields.storePromoText, store.promoText);
-
   if (storeFields.storePhoneLink && store.phone) {
     storeFields.storePhoneLink.textContent = store.phone;
     storeFields.storePhoneLink.href = `tel:${store.phone}`;
   }
-
   if (store.brandName) {
     document.title = `${store.brandName} | 宠物洗护寄养会员服务`;
   }
-
   renderNotices(store.notices || []);
 }
 
@@ -343,9 +217,7 @@ async function loadBookingOptions() {
     }
     bookingState.categories = (result.data.categories || []).filter((item) => item.id !== 'all');
     bookingState.services = result.data.services || [];
-    bookingCategory.innerHTML = bookingState.categories
-      .map((item) => optionHtml(item.id, item.name))
-      .join('');
+    bookingCategory.innerHTML = bookingState.categories.map((item) => optionHtml(item.id, item.name)).join('');
     await loadBookingSlots();
   } catch (error) {
     message.textContent = error.message || '预约信息加载失败';
@@ -361,7 +233,6 @@ bookingCategory.addEventListener('change', loadBookingSlots);
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-
   const data = new FormData(form);
   const guestName = String(data.get('customerName') || '').trim();
   const guestPhone = String(data.get('phone') || '').trim();
@@ -391,9 +262,7 @@ form.addEventListener('submit', async (event) => {
   try {
     const response = await fetch('/api/bookings', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         serviceId: service.id,
         petName: currentUser ? (currentUser.accountName || currentUser.name) : guestName,
@@ -422,7 +291,7 @@ form.addEventListener('submit', async (event) => {
 
 authButton.addEventListener('click', () => {
   if (currentUser) {
-    openProfile();
+    window.location.href = './account.html';
     return;
   }
   authModal.hidden = false;
@@ -438,30 +307,6 @@ authModal.addEventListener('click', (event) => {
   if (event.target === authModal) {
     authModal.hidden = true;
   }
-});
-
-profileClose.addEventListener('click', () => {
-  profileModal.hidden = true;
-});
-
-profileModal.addEventListener('click', (event) => {
-  if (event.target === profileModal) {
-    profileModal.hidden = true;
-  }
-});
-
-showPhoneFormButton.addEventListener('click', () => {
-  const nextHidden = !phoneForm.hidden ? true : false;
-  hideProfileForms();
-  phoneForm.hidden = nextHidden;
-  profileMessage.textContent = '';
-});
-
-showPasswordFormButton.addEventListener('click', () => {
-  const nextHidden = !passwordForm.hidden ? true : false;
-  hideProfileForms();
-  passwordForm.hidden = nextHidden;
-  profileMessage.textContent = '';
 });
 
 authModeToggle.addEventListener('click', () => {
@@ -482,16 +327,13 @@ authForm.addEventListener('submit', async (event) => {
     payload.phone = String(data.get('phone') || '').trim();
   }
   const submitButton = authForm.querySelector('button[type="submit"]');
-
   submitButton.disabled = true;
   authMessage.textContent = '';
 
   try {
     const response = await fetch(authMode === 'register' ? '/api/register' : '/api/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const result = await response.json();
@@ -508,90 +350,6 @@ authForm.addEventListener('submit', async (event) => {
   } finally {
     submitButton.disabled = false;
   }
-});
-
-phoneForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  if (!currentUser) {
-    profileMessage.textContent = '请先登录';
-    return;
-  }
-  const submitButton = phoneForm.querySelector('button');
-  const data = new FormData(phoneForm);
-  submitButton.disabled = true;
-  profileMessage.textContent = '';
-  try {
-    const response = await fetch('/api/user/phone', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        userId: currentUser.id,
-        phone: String(data.get('phone') || '').trim()
-      })
-    });
-    const result = await response.json();
-    if (!response.ok || result.code !== 0) {
-      throw new Error(result.message || '手机号修改失败');
-    }
-    setCurrentUser(result.data.user);
-    profileMessage.textContent = result.message || '手机号已更新';
-    hideProfileForms();
-    await loadProfile();
-  } catch (error) {
-    profileMessage.textContent = error.message || '手机号修改失败';
-  } finally {
-    submitButton.disabled = false;
-  }
-});
-
-passwordForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  if (!currentUser) {
-    profileMessage.textContent = '请先登录';
-    return;
-  }
-  const submitButton = passwordForm.querySelector('button');
-  const data = new FormData(passwordForm);
-  const newPassword = String(data.get('newPassword') || '');
-  const confirmPassword = String(data.get('confirmPassword') || '');
-  if (newPassword !== confirmPassword) {
-    profileMessage.textContent = '两次输入的新密码不一致';
-    return;
-  }
-  submitButton.disabled = true;
-  profileMessage.textContent = '';
-  try {
-    const response = await fetch('/api/user/password', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        userId: currentUser.id,
-        currentPassword: String(data.get('currentPassword') || ''),
-        newPassword,
-        confirmPassword
-      })
-    });
-    const result = await response.json();
-    if (!response.ok || result.code !== 0) {
-      throw new Error(result.message || '密码修改失败');
-    }
-    setCurrentUser(result.data.user);
-    profileMessage.textContent = result.message || '密码已更新';
-    hideProfileForms();
-  } catch (error) {
-    profileMessage.textContent = error.message || '密码修改失败';
-  } finally {
-    submitButton.disabled = false;
-  }
-});
-
-logoutButton.addEventListener('click', () => {
-  setCurrentUser(null);
-  profileModal.hidden = true;
 });
 
 try {

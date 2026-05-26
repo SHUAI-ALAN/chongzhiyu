@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>服务中心 | 宠之寓</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body class="account-page">
+    <header class="account-header">
+      <nav class="nav">
+        <a class="brand" href="./">
+          <span class="brand-mark">寓</span>
+          <span>宠之寓</span>
+        </a>
+        <div class="nav-actions">
+          <a class="plain-nav-link" href="./">官网</a>
+          <button class="nav-auth" id="logoutButton" type="button" hidden>退出登录</button>
+        </div>
+      </nav>
+      <section class="account-hero">
+        <p class="eyebrow">My Account</p>
+        <h1>服务中心</h1>
+        <p>订单状态、余额、个人资料和宠物档案都在这里。</p>
+      </section>
+    </header>
+
+    <main class="account-main">
+      <section class="account-login" id="accountLoginPanel" hidden>
+        <div>
+          <p class="eyebrow">Account</p>
+          <h2 id="accountAuthTitle">登录后查看账户</h2>
+          <p class="auth-copy" id="accountAuthCopy">登录后可以查看订单、管理宠物档案，也能直接用已有宠物快速预约。</p>
+        </div>
+        <form id="accountLoginForm">
+          <input type="text" name="accountName" placeholder="用户名" maxlength="24" required>
+          <input type="password" name="password" placeholder="密码" minlength="6" required>
+          <input class="account-register-only" type="tel" name="phone" placeholder="手机号" maxlength="11">
+          <button type="submit" id="accountAuthSubmit">登录</button>
+          <button class="link-button" id="accountAuthModeToggle" type="button">没有账号？去注册</button>
+          <p class="form-message" id="accountLoginMessage"></p>
+        </form>
+      </section>
+
+      <section class="account-dashboard" id="accountDashboard" hidden>
+        <div class="account-summary">
+          <article class="wallet-card" data-summary-view="profile">
+            <span>账户余额</span>
+            <strong id="walletBalance">¥0.00</strong>
+            <small id="walletMeta">普通用户 · 0 积分</small>
+          </article>
+          <article data-summary-view="profile">
+            <span>用户信息</span>
+            <strong id="accountNameText">-</strong>
+            <small id="accountPhoneText">-</small>
+          </article>
+          <article data-summary-view="pets">
+            <span>宠物档案</span>
+            <strong id="petCountText">0</strong>
+            <small id="groomingNoticeText">暂无洗护提醒</small>
+          </article>
+        </div>
+
+        <section class="account-section account-view" data-account-view="booking">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Book</p>
+              <h2>服务预约</h2>
+            </div>
+          </div>
+          <p class="booking-copy">选择服务类目、宠物信息和到店时间，提交后商家会尽快确认。</p>
+          <form id="accountBookingForm">
+            <div class="form-grid">
+              <div class="form-field full">
+                <span>服务类目</span>
+                <div class="choice-grid service-choice-grid" id="accountCategoryCards"></div>
+                <select class="select-fallback" name="category" id="accountBookingCategory"></select>
+              </div>
+              <div class="form-field full" id="accountPetQuickField" hidden>
+                <span>已有宠物</span>
+                <div class="quick-pet-grid" id="accountPetQuickCards"></div>
+              </div>
+              <div class="form-field">
+                <span>宠物种类</span>
+                <div class="choice-grid pet-type-choice" id="accountPetTypeCards">
+                  <button class="active" type="button" data-pet-type="dog">
+                    <strong>狗狗</strong>
+                    <small>Dog</small>
+                  </button>
+                  <button type="button" data-pet-type="cat">
+                    <strong>猫咪</strong>
+                    <small>Cat</small>
+                  </button>
+                  <button type="button" data-pet-type="other">
+                    <strong>其他</strong>
+                    <small>Other</small>
+                  </button>
+                </div>
+                <input id="accountPetType" type="hidden" name="petType" value="dog">
+              </div>
+              <div class="form-field">
+                <span>宠物体型</span>
+                <div class="choice-grid pet-size-choice" id="accountPetSizeCards"></div>
+                <input id="accountPetSize" type="hidden" name="petSize" value="">
+              </div>
+              <label>
+                <span>宠物体重</span>
+                <input id="accountPetWeight" type="number" name="petWeight" min="0" step="0.1" placeholder="kg，可选">
+              </label>
+              <div class="price-preview" id="accountPricePreview">
+                <span>预估价格</span>
+                <strong>¥0.00</strong>
+                <small>价格会根据种类和体型粗略估算，最终以到店确认为准。</small>
+              </div>
+              <div class="form-field full single-time-field account-single-time-field">
+                <span>预约时间</span>
+                <div class="choice-grid time-choice-grid" id="accountTimeCards"></div>
+                <select class="select-fallback" name="dateTime" id="accountBookingDateTime"></select>
+              </div>
+              <div class="form-field full boarding-field account-boarding-field">
+                <span>开始时间</span>
+                <div class="choice-grid time-choice-grid" id="accountBoardingStartCards"></div>
+                <select class="select-fallback" name="startDateTime" id="accountBoardingStartDateTime"></select>
+              </div>
+              <div class="form-field full boarding-field account-boarding-field">
+                <span>结束时间</span>
+                <div class="choice-grid time-choice-grid" id="accountBoardingEndCards"></div>
+                <select class="select-fallback" name="endDateTime" id="accountBoardingEndDateTime"></select>
+              </div>
+              <label class="full">
+                <span>备注</span>
+                <textarea name="remark" placeholder="可填写性格、护理要求、是否接送等" maxlength="160"></textarea>
+              </label>
+            </div>
+            <button type="submit">提交预约</button>
+            <p id="appointmentMessage" class="form-message"></p>
+          </form>
+        </section>
+
+        <section class="account-section account-view" data-account-view="orders">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Orders</p>
+              <h2>订单状态</h2>
+            </div>
+          </div>
+          <div class="account-list" id="bookingList"></div>
+          <div class="pagination account-pagination">
+            <button id="bookingPrev" type="button">上一页</button>
+            <span id="bookingPageInfo">第 1 / 1 页</span>
+            <button id="bookingNext" type="button">下一页</button>
+          </div>
+          <p class="form-message" id="bookingMessage"></p>
+        </section>
+
+        <section class="account-section account-view" data-account-view="pets">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Pets</p>
+              <h2>宠物档案</h2>
+            </div>
+            <button type="button" id="showPetFormButton">添加宠物</button>
+          </div>
+          <div class="pet-grid" id="petList"></div>
+          <form class="pet-form account-pet-form" id="petForm" hidden>
+            <input type="text" name="name" placeholder="宠物名字" maxlength="24" required>
+            <select name="type" required>
+              <option value="dog">狗狗</option>
+              <option value="cat">猫猫</option>
+              <option value="other">其他</option>
+            </select>
+            <input type="text" name="breed" placeholder="品种" maxlength="24">
+            <input type="text" name="age" placeholder="年龄，如 2 岁" maxlength="24">
+            <input type="number" name="weight" min="0" step="0.1" placeholder="体重 kg">
+            <input type="date" name="lastGroomedAt" aria-label="上次洗护日期">
+            <label class="photo-picker">
+              <input type="file" name="photo" accept="image/*">
+              <span id="petPhotoLabel">选择照片</span>
+            </label>
+            <button type="submit">保存档案</button>
+            <p class="form-message" id="petFormMessage"></p>
+          </form>
+        </section>
+
+        <section class="account-section account-view" data-account-view="profile">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Profile</p>
+              <h2>个人信息</h2>
+            </div>
+          </div>
+          <div class="profile-actions">
+            <button type="button" id="showPhoneFormButton">修改手机号</button>
+            <button type="button" id="showPasswordFormButton">修改密码</button>
+          </div>
+          <div class="profile-forms">
+            <form id="phoneForm" hidden>
+              <h3>修改手机号</h3>
+              <input type="tel" name="phone" placeholder="新手机号" maxlength="11" required>
+              <button type="submit">保存手机号</button>
+            </form>
+            <form id="passwordForm" hidden>
+              <h3>修改密码</h3>
+              <input type="password" name="currentPassword" placeholder="原密码" required>
+              <input type="password" name="newPassword" placeholder="新密码，至少 6 位" minlength="6" required>
+              <input type="password" name="confirmPassword" placeholder="再次输入新密码" minlength="6" required>
+              <button type="submit">保存密码</button>
+            </form>
+          </div>
+          <p class="form-message" id="profileMessage"></p>
+        </section>
+
+        <section class="account-section account-view" data-account-view="history">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Billing</p>
+              <h2>账单明细</h2>
+            </div>
+          </div>
+          <div class="account-list" id="orderList"></div>
+          <div class="pagination account-pagination">
+            <button id="orderPrev" type="button">上一页</button>
+            <span id="orderPageInfo">第 1 / 1 页</span>
+            <button id="orderNext" type="button">下一页</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <nav class="bottom-tabs" id="accountTabs" hidden>
+      <button type="button" data-tab-target="booking">预约</button>
+      <button type="button" data-tab-target="orders">订单</button>
+      <button type="button" data-tab-target="pets">宠物</button>
+      <button type="button" data-tab-target="profile">我的</button>
+      <button type="button" data-tab-target="history">账单</button>
+    </nav>
+
+    <div class="auth-modal" id="paymentModal" hidden>
+      <div class="payment-dialog">
+        <button class="auth-close" id="paymentClose" type="button">×</button>
+        <p class="eyebrow">Payment</p>
+        <h2>扫码支付</h2>
+        <p class="payment-summary" id="paymentSummary"></p>
+        <div class="payment-qr-grid">
+          <article>
+            <strong>商家微信</strong>
+            <div class="qr-placeholder">微信收款码</div>
+          </article>
+          <article>
+            <strong>商家支付宝</strong>
+            <div class="qr-placeholder">支付宝收款码</div>
+          </article>
+        </div>
+        <p class="payment-note">付款完成后请联系门店，商家会在后台确认收款。</p>
+      </div>
+    </div>
+
+    <div class="auth-modal" id="bookingSuccessModal" hidden>
+      <div class="payment-dialog">
+        <button class="auth-close" id="bookingSuccessClose" type="button">×</button>
+        <p class="eyebrow">Booked</p>
+        <h2>预约已提交</h2>
+        <p class="payment-summary" id="bookingSuccessSummary"></p>
+        <button class="primary-btn" id="bookingSuccessOrders" type="button">查看订单</button>
+      </div>
+    </div>
+
+    <script src="./account.js"></script>
+  </body>
+</html>

@@ -1,5 +1,8 @@
 const metricsNode = document.querySelector('#metrics');
 const bookingListNode = document.querySelector('#bookingList');
+const bookingPrev = document.querySelector('#bookingPrev');
+const bookingNext = document.querySelector('#bookingNext');
+const bookingPageInfo = document.querySelector('#bookingPageInfo');
 const userListNode = document.querySelector('#userList');
 const userOrderPanel = document.querySelector('#userOrderPanel');
 const userOrderTitle = document.querySelector('#userOrderTitle');
@@ -64,12 +67,22 @@ const adminPasswordModal = document.querySelector('#adminPasswordModal');
 const adminPasswordForm = document.querySelector('#adminPasswordForm');
 const adminPasswordClose = document.querySelector('#adminPasswordClose');
 const adminPasswordMessage = document.querySelector('#adminPasswordMessage');
+const adminPageTitle = document.querySelector('#adminPageTitle');
 
 const statusActions = [
   { status: 'confirmed', label: '确认', primary: true },
   { status: 'completed', label: '完成' },
   { status: 'canceled', label: '取消' }
 ];
+
+function canChangeBookingStatus(currentStatus, nextStatus) {
+  if (currentStatus === nextStatus) return false;
+  if (['completed', 'canceled'].includes(currentStatus)) return false;
+  if (nextStatus === 'confirmed') return currentStatus === 'pending';
+  if (nextStatus === 'completed') return currentStatus === 'confirmed';
+  if (nextStatus === 'canceled') return ['pending', 'confirmed'].includes(currentStatus);
+  return false;
+}
 
 const userOrderState = {
   phone: '',
@@ -82,6 +95,23 @@ const memberOrderState = {
   page: 1,
   totalPages: 1
 };
+
+const bookingState = {
+  page: 1,
+  totalPages: 1
+};
+
+let activeAdminView = 'overview';
+const adminViewTitles = {
+  overview: { title: '运营概览' },
+  store: { title: '门店信息' },
+  bookings: { title: '预约管理' },
+  users: { title: '用户查询' },
+  members: { title: '会员管理' },
+  notices: { title: '门店公告' },
+  subscribers: { title: '订阅线索' }
+};
+const validAdminViews = new Set(Object.keys(adminViewTitles));
 
 const adminAuth = {
   token: window.localStorage.getItem('petAdminToken') || '',
@@ -165,6 +195,24 @@ function renderMetrics(summary) {
   )).join('');
 }
 
+function setAdminView(view) {
+  if (!validAdminViews.has(view)) {
+    view = 'overview';
+  }
+  activeAdminView = view;
+  const title = adminViewTitles[activeAdminView];
+  adminPageTitle.textContent = title.title;
+  document.querySelectorAll('.admin-view').forEach((node) => {
+    node.hidden = node.dataset.adminView !== activeAdminView;
+  });
+  document.querySelectorAll('[data-admin-tab]').forEach((node) => {
+    node.classList.toggle('active', node.dataset.adminTab === activeAdminView);
+  });
+  if (window.location.hash !== `#${activeAdminView}`) {
+    window.history.replaceState(null, '', `#${activeAdminView}`);
+  }
+}
+
 function renderStoreForm(store) {
   storeBrandName.value = store.brandName || '';
   storeStatusInput.value = store.status || '';
@@ -187,6 +235,21 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function formatLocalDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+}
+
 function renderBookings(bookings) {
   if (!bookings.length) {
     bookingListNode.innerHTML = '<div class="empty">暂无预约记录</div>';
@@ -202,6 +265,7 @@ function renderBookings(bookings) {
           <th>宠物</th>
           <th>客户</th>
           <th>状态</th>
+          <th>收款</th>
           <th>操作</th>
         </tr>
       </thead>
@@ -210,7 +274,7 @@ function renderBookings(bookings) {
           <tr>
             <td>
               <div class="cell-main">${escapeHtml(booking.date)} ${escapeHtml(booking.time)}</div>
-              <div class="cell-sub">${escapeHtml(booking.createdAt || '')}</div>
+              <div class="cell-sub">提交于 ${escapeHtml(formatLocalDateTime(booking.createdAt))}</div>
             </td>
             <td>
               <div class="cell-main">${escapeHtml(booking.serviceName)}</div>
@@ -229,15 +293,27 @@ function renderBookings(bookings) {
             </td>
             <td><span class="status ${escapeHtml(booking.status)}">${escapeHtml(booking.statusLabel)}</span></td>
             <td>
+              <div class="cell-main">¥${Number(booking.amount || 0).toFixed(2)}</div>
+              <div class="cell-sub">${escapeHtml(booking.paymentStatusLabel || booking.paymentStatus || '待支付')}</div>
+              ${booking.paidAt ? `<div class="cell-sub">${escapeHtml(booking.paidAt)}</div>` : ''}
+            </td>
+            <td>
               <div class="booking-actions">
                 ${statusActions.map((action) => `
                   <button
                     class="${action.primary ? 'primary' : ''}"
                     data-booking-id="${escapeHtml(booking.id)}"
                     data-status="${action.status}"
-                    ${booking.status === action.status ? 'disabled' : ''}
+                    ${canChangeBookingStatus(booking.status, action.status) ? '' : 'disabled'}
                   >${action.label}</button>
                 `).join('')}
+                ${(booking.paymentStatus || 'unpaid') !== 'paid' ? `
+                  <button
+                    class="primary"
+                    data-booking-id="${escapeHtml(booking.id)}"
+                    data-payment-status="paid"
+                  >确认收款</button>
+                ` : ''}
               </div>
             </td>
           </tr>
@@ -502,7 +578,7 @@ async function loadDashboard() {
     const keyword = userKeywordFilter.value.trim();
     const [summaryData, bookingData, userData, memberData, noticeData, subscriberData] = await Promise.all([
       api('/api/admin/summary'),
-      api(`/api/admin/bookings?status=${encodeURIComponent(status)}&date=${encodeURIComponent(date)}`),
+      api(`/api/admin/bookings?status=${encodeURIComponent(status)}&date=${encodeURIComponent(date)}&page=${encodeURIComponent(bookingState.page)}&pageSize=10`),
       api(`/api/admin/users?type=${encodeURIComponent(userType)}&keyword=${encodeURIComponent(keyword)}`),
       api(`/api/admin/members?orderPage=${encodeURIComponent(memberOrderState.page)}&orderPageSize=10`),
       api('/api/admin/notices'),
@@ -511,6 +587,11 @@ async function loadDashboard() {
     renderMetrics(summaryData.summary);
     renderStoreForm(summaryData.store);
     renderBookings(bookingData.bookings);
+    bookingState.page = bookingData.page || 1;
+    bookingState.totalPages = bookingData.totalPages || 1;
+    bookingPageInfo.textContent = `第 ${bookingState.page} / ${bookingState.totalPages} 页，共 ${bookingData.total || 0} 条`;
+    bookingPrev.disabled = bookingState.page <= 1;
+    bookingNext.disabled = bookingState.page >= bookingState.totalPages;
     renderUsers(userData.users);
     renderMembers(memberData.members);
     renderMemberOrders(memberData);
@@ -531,11 +612,14 @@ bookingListNode.addEventListener('click', async (event) => {
   }
   button.disabled = true;
   try {
+    const payload = button.dataset.paymentStatus
+      ? { paymentStatus: button.dataset.paymentStatus, paymentMethod: 'offline' }
+      : { status: button.dataset.status };
     await api(`/api/admin/bookings/${encodeURIComponent(button.dataset.bookingId)}`, {
       method: 'PATCH',
-      body: JSON.stringify({ status: button.dataset.status })
+      body: JSON.stringify(payload)
     });
-    showToast('预约状态已更新');
+    showToast(button.dataset.paymentStatus ? '收款状态已更新' : '预约状态已更新');
     await loadDashboard();
   } catch (error) {
     showToast(error.message || '更新失败');
@@ -755,8 +839,14 @@ noticeListNode.addEventListener('click', async (event) => {
 });
 
 refreshButton.addEventListener('click', loadDashboard);
-statusFilter.addEventListener('change', loadDashboard);
-dateFilter.addEventListener('change', loadDashboard);
+statusFilter.addEventListener('change', () => {
+  bookingState.page = 1;
+  loadDashboard();
+});
+dateFilter.addEventListener('change', () => {
+  bookingState.page = 1;
+  loadDashboard();
+});
 userTypeFilter.addEventListener('change', loadDashboard);
 userKeywordFilter.addEventListener('input', () => {
   window.clearTimeout(userKeywordFilter.timer);
@@ -795,6 +885,27 @@ memberOrderNext.addEventListener('click', () => {
     memberOrderState.page += 1;
     loadDashboard();
   }
+});
+
+bookingPrev.addEventListener('click', () => {
+  if (bookingState.page > 1) {
+    bookingState.page -= 1;
+    loadDashboard();
+  }
+});
+
+bookingNext.addEventListener('click', () => {
+  if (bookingState.page < bookingState.totalPages) {
+    bookingState.page += 1;
+    loadDashboard();
+  }
+});
+
+document.querySelectorAll('[data-admin-tab]').forEach((node) => {
+  node.addEventListener('click', (event) => {
+    event.preventDefault();
+    setAdminView(node.dataset.adminTab);
+  });
 });
 
 adminLoginForm.addEventListener('submit', async (event) => {
@@ -882,6 +993,12 @@ adminPasswordForm.addEventListener('submit', async (event) => {
     button.disabled = false;
   }
 });
+
+const initialHash = window.location.hash.replace('#', '');
+if (validAdminViews.has(initialHash)) {
+  activeAdminView = initialHash;
+}
+setAdminView(activeAdminView);
 
 checkAdminSession().then((loggedIn) => {
   if (loggedIn) {

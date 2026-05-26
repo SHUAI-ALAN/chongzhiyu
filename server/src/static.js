@@ -36,17 +36,33 @@ function serveStaticAsset(url, res, options) {
     return true;
   }
 
-  if (!fs.existsSync(targetPath) || fs.statSync(targetPath).isDirectory()) {
+  let finalPath = targetPath;
+  let finalExists = fs.existsSync(finalPath) && !fs.statSync(finalPath).isDirectory();
+  if (!finalExists && !path.extname(relativePath)) {
+    const htmlPath = path.resolve(options.root, `${relativePath}.html`);
+    const htmlRelativeToRoot = path.relative(options.root, htmlPath);
+    if (
+      !htmlRelativeToRoot.startsWith('..')
+      && !path.isAbsolute(htmlRelativeToRoot)
+      && fs.existsSync(htmlPath)
+      && !fs.statSync(htmlPath).isDirectory()
+    ) {
+      finalPath = htmlPath;
+      finalExists = true;
+    }
+  }
+
+  if (!finalExists) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not found');
     return true;
   }
 
-  const ext = path.extname(targetPath);
+  const ext = path.extname(finalPath);
   res.writeHead(200, {
     'Content-Type': mimeTypes[ext] || 'application/octet-stream'
   });
-  fs.createReadStream(targetPath).pipe(res);
+  fs.createReadStream(finalPath).pipe(res);
   return true;
 }
 

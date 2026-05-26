@@ -100,6 +100,12 @@ async function main() {
       throw new Error('/official/ did not render expected brand text');
     }
 
+    const accountResponse = await fetch(`${base}/official/account.html`);
+    const accountHtml = await accountResponse.text();
+    if (!accountHtml.includes('account.js')) {
+      throw new Error('/official/account.html did not render account page');
+    }
+
     const adminResponse = await fetch(`${base}/admin/`);
     const adminHtml = await adminResponse.text();
     if (!adminHtml.includes('门店后台')) {
@@ -126,6 +132,10 @@ async function main() {
       throw new Error(`admin login failed: ${adminLogin.message}`);
     }
     const adminToken = adminLogin.data.token;
+    const sessionData = await getJson(base, '/api/admin/session', adminToken);
+    if (!sessionData.admin || sessionData.admin.username !== 'admin') {
+      throw new Error('admin session check failed');
+    }
 
     const adminBookings = await getJson(base, '/api/admin/bookings', adminToken);
     const createdBooking = adminBookings.bookings.find((item) => item.id === booking.data.booking.id);
@@ -146,8 +156,77 @@ async function main() {
       throw new Error('booking status update failed');
     }
 
+    const completeResponse = await fetch(`${base}/api/admin/bookings/${createdBooking.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ status: 'completed' })
+    });
+    const completed = await completeResponse.json();
+    if (completed.code !== 0 || completed.data.booking.status !== 'completed') {
+      throw new Error('booking completion failed');
+    }
+
+    const memberData = await getJson(base, '/api/admin/members', adminToken);
+    const payingMember = memberData.members.find((item) => item.phone === '13800138000');
+    if (!payingMember) {
+      throw new Error('seed member missing for payment smoke');
+    }
+    const payResponse = await fetch(`${base}/api/user/bookings/${createdBooking.id}/pay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: payingMember.id })
+    });
+    const paid = await payResponse.json();
+    if (paid.code !== 0 || paid.data.booking.paymentStatus !== 'paid') {
+      throw new Error(`member payment failed: ${paid.message}`);
+    }
+
+    const petResponse = await fetch(`${base}/api/user/pets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: payingMember.id,
+        name: '奶糖',
+        type: 'cat',
+        breed: '布偶',
+        age: '1 岁',
+        weight: '4.2',
+        lastGroomedAt: '2026-01-01'
+      })
+    });
+    const pet = await petResponse.json();
+    if (pet.code !== 0 || !pet.data.user.pets.some((item) => item.name === '奶糖')) {
+      throw new Error(`pet add failed: ${pet.message}`);
+    }
+
+    const profileData = await getJson(base, `/api/user/profile?userId=${payingMember.id}`);
+    if (!profileData.user.pets.some((item) => item.name === '奶糖')) {
+      throw new Error('pet missing from user profile');
+    }
+    if (!profileData.user.pets.some((item) => item.name === '奶糖' && item.groomingDue)) {
+      throw new Error('pet grooming reminder missing from user profile');
+    }
+
     await getJson(base, '/api/admin/summary', adminToken);
     await getJson(base, '/api/admin/subscribers', adminToken);
+
+    const logoutResponse = await fetch(`${base}/api/admin/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const logout = await logoutResponse.json();
+    if (logout.code !== 0) {
+      throw new Error(`admin logout failed: ${logout.message}`);
+    }
+    const expiredSessionResponse = await fetch(`${base}/api/admin/session`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    if (expiredSessionResponse.status !== 401) {
+      throw new Error('admin session should expire after logout');
+    }
 
     console.log('API smoke ok');
   } finally {

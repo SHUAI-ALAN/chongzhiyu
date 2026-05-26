@@ -2,6 +2,10 @@ const {
   storeConfig,
   serviceCategories,
   services,
+  petSizeOptions,
+  servicePriceRules,
+  calculateServicePrice,
+  inferPetSizeByWeight,
   productCategories,
   products,
   coupons,
@@ -11,8 +15,10 @@ const {
   getStoreProfile,
   updateStoreProfile,
   listBookings,
+  getBooking,
   addBooking,
   updateBookingStatus,
+  updateBookingPayment,
   listMembers,
   getPrimaryMember,
   getMemberByPhone,
@@ -20,6 +26,9 @@ const {
   registerUser,
   verifyPassword,
   updateMember,
+  addMemberPet,
+  updateMemberPet,
+  deleteMemberPet,
   deleteMember,
   listMemberOrders,
   addMemberOrder,
@@ -33,7 +42,12 @@ const {
   deleteNotice,
   getAdminByUsername,
   getAdmin,
-  updateAdminPassword
+  updateAdminPassword,
+  addAdminSession,
+  getAdminSession,
+  updateAdminSession,
+  deleteAdminSession,
+  deleteExpiredAdminSessions
 } = require('./data/runtime');
 const { ok, fail, readJson, notFound } = require('./utils/http');
 const { verifySignature, buildTextReply, readXmlText } = require('./wechat');
@@ -41,9 +55,18 @@ const { serveOfficialAsset, serveAdminAsset } = require('./static');
 const crypto = require('crypto');
 
 const bookingStatuses = new Set(['pending', 'confirmed', 'completed', 'canceled']);
+const bookingPaymentStatuses = new Set(['unpaid', 'paid']);
 const memberLevels = new Set(['normal', 'basic', 'middle', 'senior']);
-const adminSessions = new Map();
-const adminSessionTtl = 1000 * 60 * 60 * 12;
+const adminSessionTtl = 1000 * 60 * 60 * 24 * 7;
+
+function canChangeBookingStatus(currentStatus, nextStatus) {
+  if (currentStatus === nextStatus) return false;
+  if (['completed', 'canceled'].includes(currentStatus)) return false;
+  if (nextStatus === 'confirmed') return currentStatus === 'pending';
+  if (nextStatus === 'completed') return currentStatus === 'confirmed';
+  if (nextStatus === 'canceled') return ['pending', 'confirmed'].includes(currentStatus);
+  return false;
+}
 
 function filterByCategory(items, category) {
   if (!category || category === 'all') {
@@ -70,10 +93,7 @@ function publicAdmin(admin) {
 
 function createAdminSession(admin) {
   const token = crypto.randomBytes(32).toString('hex');
-  adminSessions.set(token, {
-    adminId: admin.id,
-    expiresAt: Date.now() + adminSessionTtl
-  });
+  addAdminSession(token, admin.id, Date.now() + adminSessionTtl);
   return token;
 }
 
@@ -88,15 +108,17 @@ function getSessionAdmin(req) {
   if (!token) {
     return null;
   }
-  const session = adminSessions.get(token);
+  deleteExpiredAdminSessions();
+  const session = getAdminSession(token);
   if (!session || session.expiresAt < Date.now()) {
-    adminSessions.delete(token);
+    deleteAdminSession(token);
     return null;
   }
-  session.expiresAt = Date.now() + adminSessionTtl;
+  const nextExpiresAt = Date.now() + adminSessionTtl;
+  updateAdminSession(token, nextExpiresAt);
   const admin = getAdmin(session.adminId);
   if (!admin) {
-    adminSessions.delete(token);
+    deleteAdminSession(token);
     return null;
   }
   return { admin, token };
@@ -130,6 +152,13 @@ function createBooking(payload) {
   if (!service) {
     return { error: '服务不存在' };
   }
+  const petType = String(payload.petType || '').trim() || 'other';
+  const petSize = String(payload.petSize || '').trim()
+    || inferPetSizeByWeight(petType, payload.petWeight)
+    || 'small';
+  if (!petSizeOptions.some((item) => item.id === petSize)) {
+    return { error: '请选择宠物体型' };
+  }
 
   const slots = buildSlots(service.id);
   const selectedDay = slots.find((item) => item.date === payload.date);
@@ -153,13 +182,15 @@ function createBooking(payload) {
     serviceId: service.id,
     serviceName: service.name,
     petName: payload.petName,
-    petType: payload.petType || '',
+    petType,
     customerName: payload.customerName,
     phone: payload.phone,
     date: payload.date,
     time: payload.time,
     remark: payload.remark || '',
     status: 'pending',
+    amount: calculateServicePrice(service, petType, petSize),
+    paymentStatus: 'unpaid',
     createdAt: new Date().toISOString()
   });
 
@@ -198,11 +229,19 @@ function bookingStatusLabel(status) {
   }[status] || status;
 }
 
+function bookingPaymentStatusLabel(status) {
+  return {
+    unpaid: '待支付',
+    paid: '已支付'
+  }[status] || status;
+}
+
 function toAdminBooking(booking) {
   const bookingMember = listMembers().find((item) => item.phone === booking.phone);
   return {
     ...booking,
     statusLabel: bookingStatusLabel(booking.status),
+    paymentStatusLabel: bookingPaymentStatusLabel(booking.paymentStatus),
     userType: bookingMember ? 'member' : 'normal',
     userTypeLabel: bookingMember ? '会员' : '普通用户',
     memberLevelLabel: bookingMember ? memberLevelLabel(bookingMember.level) : ''
@@ -232,6 +271,33 @@ function toPublicMember(member) {
   };
 }
 
+function toPublicPet(pet) {
+  const lastGroomedAt = pet.lastGroomedAt || '';
+  let groomingDays = null;
+  let groomingDue = false;
+  if (lastGroomedAt) {
+    const last = new Date(`${lastGroomedAt}T00:00:00`);
+    if (!Number.isNaN(last.getTime())) {
+      groomingDays = Math.max(0, Math.floor((Date.now() - last.getTime()) / 86400000));
+      groomingDue = groomingDays >= 30;
+    }
+  }
+  return {
+    id: pet.id,
+    name: pet.name,
+    type: pet.type,
+    breed: pet.breed || '',
+    age: pet.age || '',
+    weight: pet.weight || '',
+    lastGroomedAt,
+    groomingDays,
+    groomingDue,
+    groomingTip: groomingDue ? '距上次洗护已超过 30 天，建议预约洗护' : '',
+    photo: pet.photo || '',
+    createdAt: pet.createdAt
+  };
+}
+
 function toPublicUser(member) {
   return {
     id: member.id,
@@ -243,7 +309,8 @@ function toPublicUser(member) {
     level: memberLevelLabel(member.level),
     levelCode: member.level,
     balance: Number(member.balance || 0),
-    points: Number(member.points || 0)
+    points: Number(member.points || 0),
+    pets: (member.pets || []).map(toPublicPet)
   };
 }
 
@@ -262,8 +329,26 @@ function toPublicBooking(booking) {
     time: booking.time,
     status: booking.status,
     statusLabel: bookingStatusLabel(booking.status),
+    amount: Number(booking.amount || 0),
+    paymentStatus: booking.paymentStatus || 'unpaid',
+    paymentStatusLabel: bookingPaymentStatusLabel(booking.paymentStatus || 'unpaid'),
+    paymentMethod: booking.paymentMethod || '',
+    paidAt: booking.paidAt,
+    completedAt: booking.completedAt,
+    canPay: booking.status === 'completed' && (booking.paymentStatus || 'unpaid') !== 'paid',
     remark: booking.remark,
     createdAt: booking.createdAt
+  };
+}
+
+function toPublicOrder(order) {
+  const booking = order.bookingId ? getBooking(order.bookingId) : null;
+  return {
+    ...order,
+    bookingDate: booking ? booking.date : '',
+    bookingTime: booking ? booking.time : '',
+    bookingCreatedAt: booking ? booking.createdAt : '',
+    bookingCompletedAt: booking ? booking.completedAt || '' : ''
   };
 }
 
@@ -444,6 +529,28 @@ function validatePasswordUpdatePayload(payload) {
   return '';
 }
 
+function validatePetPayload(payload) {
+  if (!payload.userId) {
+    return '请先登录';
+  }
+  if (!String(payload.name || '').trim()) {
+    return '请填写宠物名字';
+  }
+  if (!String(payload.type || '').trim()) {
+    return '请选择宠物种类';
+  }
+  if (payload.photo && !String(payload.photo).startsWith('data:image/')) {
+    return '宠物图片格式不正确';
+  }
+  if (payload.photo && String(payload.photo).length > 700000) {
+    return '图片过大，请选择较小的图片';
+  }
+  if (payload.lastGroomedAt && !/^\d{4}-\d{2}-\d{2}$/.test(payload.lastGroomedAt)) {
+    return '上次洗护日期格式不正确';
+  }
+  return '';
+}
+
 function validateMemberOrderPayload(payload) {
   if (!String(payload.memberId || '').trim()) {
     return '请选择会员';
@@ -527,7 +634,9 @@ async function route(req, res, url) {
     const category = url.searchParams.get('category');
     ok(res, {
       categories: serviceCategories,
-      services: filterByCategory(services, category)
+      services: filterByCategory(services, category),
+      petSizeOptions,
+      servicePriceRules
     });
     return;
   }
@@ -604,6 +713,18 @@ async function route(req, res, url) {
       const error = validateRegisterPayload(payload);
       if (error) {
         fail(res, 400, error);
+        return;
+      }
+      const accountName = String(payload.accountName || '').trim();
+      const phone = String(payload.phone || '').trim();
+      const existingByName = listMembers().find((item) => item.accountName === accountName && item.phone !== phone);
+      if (existingByName) {
+        fail(res, 400, '用户名已被使用，请换一个');
+        return;
+      }
+      const existingByPhone = getMemberByPhone(phone);
+      if (existingByPhone && existingByPhone.passwordHash) {
+        fail(res, 400, '该手机号已注册，请直接登录');
         return;
       }
       const user = registerUser(payload);
@@ -699,8 +820,126 @@ async function route(req, res, url) {
       bookings: listBookings()
         .filter((item) => item.phone === user.phone)
         .map(toPublicBooking),
-      orders: listMemberOrders({ phone: user.phone })
+      orders: listMemberOrders({ phone: user.phone }).map(toPublicOrder)
     });
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/user/pets') {
+    try {
+      const payload = await readJson(req);
+      const error = validatePetPayload(payload);
+      if (error) {
+        fail(res, 400, error);
+        return;
+      }
+      const updatedUser = addMemberPet(payload.userId, payload);
+      if (!updatedUser) {
+        fail(res, 404, '用户不存在');
+        return;
+      }
+      ok(res, { user: sanitizeUser(updatedUser) }, '宠物档案已添加');
+    } catch (error) {
+      fail(res, 400, error.message);
+    }
+    return;
+  }
+
+  if (req.method === 'PATCH' && url.pathname.startsWith('/api/user/pets/')) {
+    try {
+      const petId = decodeURIComponent(url.pathname.replace('/api/user/pets/', ''));
+      const payload = await readJson(req);
+      const error = validatePetPayload(payload);
+      if (error) {
+        fail(res, 400, error);
+        return;
+      }
+      const updatedUser = updateMemberPet(payload.userId, petId, payload);
+      if (!updatedUser) {
+        fail(res, 404, '用户不存在');
+        return;
+      }
+      ok(res, { user: sanitizeUser(updatedUser) }, '宠物档案已更新');
+    } catch (error) {
+      fail(res, 400, error.message);
+    }
+    return;
+  }
+
+  if (req.method === 'DELETE' && url.pathname.startsWith('/api/user/pets/')) {
+    try {
+      const petId = decodeURIComponent(url.pathname.replace('/api/user/pets/', ''));
+      const userId = url.searchParams.get('userId');
+      if (!userId) {
+        fail(res, 400, '请先登录');
+        return;
+      }
+      const updatedUser = deleteMemberPet(userId, petId);
+      if (!updatedUser) {
+        fail(res, 404, '用户不存在');
+        return;
+      }
+      ok(res, { user: sanitizeUser(updatedUser) }, '宠物档案已删除');
+    } catch (error) {
+      fail(res, 400, error.message);
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname.startsWith('/api/user/bookings/') && url.pathname.endsWith('/pay')) {
+    try {
+      const id = decodeURIComponent(url.pathname.replace('/api/user/bookings/', '').replace('/pay', ''));
+      const payload = await readJson(req);
+      const user = listMembers().find((item) => item.id === payload.userId);
+      if (!user) {
+        fail(res, 404, '用户不存在');
+        return;
+      }
+      const booking = getBooking(id);
+      if (!booking || booking.phone !== user.phone) {
+        fail(res, 404, '预约不存在');
+        return;
+      }
+      if (booking.status !== 'completed') {
+        fail(res, 400, '商家完成服务后才能支付');
+        return;
+      }
+      if (booking.paymentStatus === 'paid') {
+        ok(res, { booking: toPublicBooking(booking), user: sanitizeUser(user) }, '该订单已支付');
+        return;
+      }
+      if (user.level === 'normal') {
+        fail(res, 400, '普通用户请扫码支付');
+        return;
+      }
+      const amount = Number(booking.amount || 0);
+      if (Number(user.balance || 0) < amount) {
+        fail(res, 400, '会员余额不足，请联系门店充值');
+        return;
+      }
+      const updatedUser = updateMember(user.id, {
+        balance: Number(user.balance || 0) - amount
+      });
+      const paidBooking = updateBookingPayment(id, {
+        paymentStatus: 'paid',
+        paymentMethod: 'member_balance'
+      });
+      addMemberOrder({
+        memberId: user.id,
+        bookingId: booking.id,
+        title: `${booking.serviceName || '预约服务'}支付`,
+        amount,
+        status: '已支付',
+        date: todayText(),
+        remark: `预约单 ${booking.id}，${booking.date} ${booking.time}`
+      });
+      ok(res, {
+        user: sanitizeUser(updatedUser),
+        booking: toPublicBooking(paidBooking)
+      }, '余额支付成功');
+    } catch (error) {
+      fail(res, 400, error.message);
+    }
     return;
   }
 
@@ -738,7 +977,7 @@ async function route(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/api/admin/logout') {
     const token = getBearerToken(req);
     if (token) {
-      adminSessions.delete(token);
+      deleteAdminSession(token);
     }
     ok(res, {});
     return;
@@ -860,8 +1099,19 @@ async function route(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/admin/bookings') {
     const status = url.searchParams.get('status') || 'all';
     const date = url.searchParams.get('date') || '';
+    const page = Math.max(1, Number(url.searchParams.get('page') || 1));
+    const pageSize = Math.min(10, Math.max(1, Number(url.searchParams.get('pageSize') || 10)));
+    const allBookings = listBookings({ status, date }).map(toAdminBooking);
+    const total = allBookings.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const start = (safePage - 1) * pageSize;
     ok(res, {
-      bookings: listBookings({ status, date }).map(toAdminBooking)
+      bookings: allBookings.slice(start, start + pageSize),
+      page: safePage,
+      pageSize,
+      total,
+      totalPages
     });
     return;
   }
@@ -870,16 +1120,39 @@ async function route(req, res, url) {
     try {
       const id = decodeURIComponent(url.pathname.replace('/api/admin/bookings/', ''));
       const payload = await readJson(req);
-      if (!bookingStatuses.has(payload.status)) {
+      if (
+        Object.prototype.hasOwnProperty.call(payload, 'status')
+        && !bookingStatuses.has(payload.status)
+      ) {
         fail(res, 400, '预约状态不正确');
         return;
       }
-      const booking = updateBookingStatus(id, payload.status);
+      if (
+        Object.prototype.hasOwnProperty.call(payload, 'paymentStatus')
+        && !bookingPaymentStatuses.has(payload.paymentStatus)
+      ) {
+        fail(res, 400, '支付状态不正确');
+        return;
+      }
+      let booking = getBooking(id);
       if (!booking) {
         fail(res, 404, '预约不存在');
         return;
       }
-      ok(res, { booking: toAdminBooking(booking) }, '预约状态已更新');
+      if (Object.prototype.hasOwnProperty.call(payload, 'status')) {
+        if (!canChangeBookingStatus(booking.status, payload.status)) {
+          fail(res, 400, '该状态不能重复或回退操作');
+          return;
+        }
+        booking = updateBookingStatus(id, payload.status);
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'paymentStatus')) {
+        booking = updateBookingPayment(id, {
+          paymentStatus: payload.paymentStatus,
+          paymentMethod: payload.paymentMethod || 'offline'
+        });
+      }
+      ok(res, { booking: toAdminBooking(booking) }, '预约已更新');
     } catch (error) {
       fail(res, 400, error.message);
     }
