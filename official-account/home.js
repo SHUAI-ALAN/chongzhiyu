@@ -265,7 +265,7 @@ form.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         serviceId: service.id,
-        petName: currentUser ? (currentUser.accountName || currentUser.name) : guestName,
+        petName: '',
         petType: data.get('petType'),
         customerName: currentUser ? (currentUser.name || currentUser.accountName) : guestName,
         phone: currentUser ? currentUser.phone : guestPhone,

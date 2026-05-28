@@ -26,6 +26,9 @@ const {
   registerUser,
   verifyPassword,
   updateMember,
+  listMemberBalanceLogs,
+  setMemberBalance,
+  payBookingWithMemberBalance,
   addMemberPet,
   updateMemberPet,
   deleteMemberPet,
@@ -138,7 +141,7 @@ function validateAdminPasswordPayload(payload) {
 }
 
 function createBooking(payload) {
-  const requiredFields = ['serviceId', 'petName', 'customerName', 'phone', 'date', 'time'];
+  const requiredFields = ['serviceId', 'customerName', 'phone', 'date', 'time'];
   const missing = requiredFields.find((field) => !payload[field]);
   if (missing) {
     return { error: `缺少字段：${missing}` };
@@ -181,7 +184,7 @@ function createBooking(payload) {
     id: `bk-${Date.now()}`,
     serviceId: service.id,
     serviceName: service.name,
-    petName: payload.petName,
+    petName: String(payload.petName || '').trim(),
     petType,
     customerName: payload.customerName,
     phone: payload.phone,
@@ -234,6 +237,46 @@ function bookingPaymentStatusLabel(status) {
     unpaid: '待支付',
     paid: '已支付'
   }[status] || status;
+}
+
+function memberBalanceChangeTypeLabel(type) {
+  return {
+    opening_balance: '初始余额',
+    admin_adjustment: '后台调整',
+    member_payment: '余额支付',
+    recharge: '余额充值',
+    refund: '余额退款',
+    correction: '余额修正'
+  }[type] || '余额变动';
+}
+
+function toAdminMemberBalanceLog(log) {
+  const member = listMembers().find((item) => item.id === log.memberId);
+  return {
+    ...log,
+    memberName: member ? member.name : '',
+    accountName: member ? member.accountName : '',
+    changeTypeLabel: memberBalanceChangeTypeLabel(log.changeType)
+  };
+}
+
+function toPublicMemberBalanceLog(log) {
+  if (!log) {
+    return null;
+  }
+  return {
+    id: log.id,
+    changeType: log.changeType,
+    changeTypeLabel: memberBalanceChangeTypeLabel(log.changeType),
+    deltaAmount: Number(log.deltaAmount || 0),
+    balanceBefore: Number(log.balanceBefore || 0),
+    balanceAfter: Number(log.balanceAfter || 0),
+    sourceType: log.sourceType || '',
+    sourceId: log.sourceId || '',
+    operatorName: log.operatorType === 'admin' ? '门店后台' : log.operatorName || '',
+    remark: log.remark || '',
+    createdAt: log.createdAt
+  };
 }
 
 function toAdminBooking(booking) {
@@ -434,7 +477,7 @@ function listAdminUsers() {
   for (const member of listMembers()) {
     const user = ensureUser(member.phone, {
       userType: member.level === 'normal' ? 'normal' : 'member',
-      userTypeLabel: member.level === 'normal' ? '普通用户' : '会员',
+      userTypeLabel: member.level === 'normal' ? '普通用户' : `${memberLevelLabel(member.level)}会员`,
       accountName: member.accountName,
       name: member.name,
       level: member.level,
@@ -484,8 +527,22 @@ function validateMemberPayload(payload, partial = false) {
   if (payload.level && !memberLevels.has(payload.level)) {
     return '会员等级不正确';
   }
-  if (payload.balance && Number(payload.balance) < 0) {
+  if (Object.prototype.hasOwnProperty.call(payload, 'balance') && Number(payload.balance) < 0) {
     return '会员余额不能小于 0';
+  }
+  return '';
+}
+
+function validateMemberBalancePayload(payload) {
+  if (!Object.prototype.hasOwnProperty.call(payload, 'balance')) {
+    return '请填写调整后的余额';
+  }
+  const balance = Number(payload.balance);
+  if (!Number.isFinite(balance) || balance < 0) {
+    return '调整后的余额不能小于 0';
+  }
+  if (!String(payload.remark || '').trim()) {
+    return '请填写余额调整原因';
   }
   return '';
 }
@@ -820,7 +877,8 @@ async function route(req, res, url) {
       bookings: listBookings()
         .filter((item) => item.phone === user.phone)
         .map(toPublicBooking),
-      orders: listMemberOrders({ phone: user.phone }).map(toPublicOrder)
+      orders: listMemberOrders({ phone: user.phone }).map(toPublicOrder),
+      balanceLogs: listMemberBalanceLogs({ memberId: user.id, limit: 50 }).map(toPublicMemberBalanceLog)
     });
     return;
   }
@@ -917,25 +975,23 @@ async function route(req, res, url) {
         fail(res, 400, '会员余额不足，请联系门店充值');
         return;
       }
-      const updatedUser = updateMember(user.id, {
-        balance: Number(user.balance || 0) - amount
-      });
-      const paidBooking = updateBookingPayment(id, {
-        paymentStatus: 'paid',
-        paymentMethod: 'member_balance'
-      });
-      addMemberOrder({
+      const payment = payBookingWithMemberBalance({
         memberId: user.id,
         bookingId: booking.id,
-        title: `${booking.serviceName || '预约服务'}支付`,
         amount,
-        status: '已支付',
+        title: `${booking.serviceName || '预约服务'}支付`,
         date: todayText(),
-        remark: `预约单 ${booking.id}，${booking.date} ${booking.time}`
+        remark: `预约单 ${booking.id}，${booking.date} ${booking.time}`,
+        operatorName: user.accountName || user.name || user.phone
       });
+      if (!payment || !payment.booking) {
+        fail(res, 400, '余额支付失败');
+        return;
+      }
       ok(res, {
-        user: sanitizeUser(updatedUser),
-        booking: toPublicBooking(paidBooking)
+        user: sanitizeUser(payment.member),
+        booking: toPublicBooking(payment.booking),
+        balanceLog: toPublicMemberBalanceLog(payment.balanceLog)
       }, '余额支付成功');
     } catch (error) {
       fail(res, 400, error.message);
@@ -1174,6 +1230,7 @@ async function route(req, res, url) {
     const orderStart = (safeOrderPage - 1) * orderPageSize;
     ok(res, {
       members: listMembers().map(toAdminMember),
+      balanceLogs: listMemberBalanceLogs({ limit: 80 }).map(toAdminMemberBalanceLog),
       orders: allOrders.slice(orderStart, orderStart + orderPageSize),
       orderPage: safeOrderPage,
       orderPageSize,
@@ -1188,7 +1245,11 @@ async function route(req, res, url) {
     const keyword = (url.searchParams.get('keyword') || '').trim();
     let users = listAdminUsers();
     if (type !== 'all') {
-      users = users.filter((item) => item.userType === type);
+      users = users.filter((item) => (
+        memberLevels.has(type)
+          ? item.level === type
+          : item.userType === type
+      ));
     }
     if (keyword) {
       users = users.filter((item) => (
@@ -1239,10 +1300,57 @@ async function route(req, res, url) {
     return;
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/admin/member-balance-logs') {
+    const memberId = url.searchParams.get('memberId') || '';
+    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit') || 80)));
+    ok(res, {
+      balanceLogs: listMemberBalanceLogs({ memberId, limit }).map(toAdminMemberBalanceLog)
+    });
+    return;
+  }
+
+  if (req.method === 'PATCH' && url.pathname.startsWith('/api/admin/members/') && url.pathname.endsWith('/balance')) {
+    try {
+      const id = decodeURIComponent(url.pathname.replace('/api/admin/members/', '').replace('/balance', ''));
+      const payload = await readJson(req);
+      const error = validateMemberBalancePayload(payload);
+      if (error) {
+        fail(res, 400, error);
+        return;
+      }
+      const result = setMemberBalance(id, payload.balance, {
+        changeType: payload.changeType || 'admin_adjustment',
+        operatorType: 'admin',
+        operatorId: req.admin.id,
+        operatorName: req.admin.username,
+        remark: payload.remark
+      });
+      if (!result) {
+        fail(res, 404, '会员不存在');
+        return;
+      }
+      if (result.noChange) {
+        fail(res, 400, '余额没有变化');
+        return;
+      }
+      ok(res, {
+        member: toAdminMember(result.member),
+        balanceLog: toAdminMemberBalanceLog(result.log)
+      }, '会员余额已调整');
+    } catch (error) {
+      fail(res, 400, error.message);
+    }
+    return;
+  }
+
   if (req.method === 'PATCH' && url.pathname.startsWith('/api/admin/members/')) {
     try {
       const id = decodeURIComponent(url.pathname.replace('/api/admin/members/', ''));
       const payload = await readJson(req);
+      if (Object.prototype.hasOwnProperty.call(payload, 'balance')) {
+        fail(res, 400, '请通过余额调整入口修改会员余额');
+        return;
+      }
       const error = validateMemberPayload(payload, true);
       if (error) {
         fail(res, 400, error);

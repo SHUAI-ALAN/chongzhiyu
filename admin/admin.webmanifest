@@ -1,0 +1,19 @@
+{
+  "name": "宠之寓管理后台",
+  "short_name": "宠之寓后台",
+  "description": "宠之寓门店管理后台，支持预约、会员、用户、公告和门店运营管理。",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#263238",
+  "theme_color": "#263238",
+  "icons": [
+    {
+      "src": "/admin/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

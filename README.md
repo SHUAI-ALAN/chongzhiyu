@@ -22,10 +22,10 @@ docs/               设计方案与接口说明
 npm install
 ```
 
-Windows PowerShell 如果遇到 `npm.ps1` 执行策略限制，可以使用：
+macOS 如果提示找不到 `npm`，请先安装 Node.js/npm，例如：
 
 ```bash
-npm.cmd install
+brew install node
 ```
 
 ### 2. 启动后端
@@ -66,10 +66,33 @@ http://localhost:8787/admin/
 ```bash
 npm run check
 npm run smoke
+npm run tunnel:start
+npm run tunnel:stop
 ```
 
 - `npm run check`：检查 JS 语法、JSON、小程序页面结构和 tabBar 跳转。
 - `npm run smoke`：启动临时后端并验证核心 API、预约提交、重复预约拦截、公众号页和门店后台。
+- `npm run tunnel:start`：通过 Serveo 暴露本地 `8787` 端口，Windows 和 macOS 均可用。
+
+## 手机 App 安装
+
+服务中心和门店后台已经支持安装为手机桌面 App。
+
+服务中心：
+
+```text
+https://chongzhiyu-shuai.serveousercontent.com/official/account.html
+```
+
+门店后台：
+
+```text
+https://chongzhiyu-shuai.serveousercontent.com/admin/
+```
+
+iPhone 使用 Safari 打开页面，点击分享按钮，选择“添加到主屏幕”。
+
+Android 使用 Chrome 打开页面，点击菜单，选择“安装应用”或“添加到主屏幕”。
 
 ## 数据持久化
 

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="宠之寓服务中心">
+  <rect width="512" height="512" rx="112" fill="#fff6eb"/>
+  <circle cx="256" cy="244" r="138" fill="#f28c38"/>
+  <circle cx="198" cy="180" r="44" fill="#263238"/>
+  <circle cx="314" cy="180" r="44" fill="#263238"/>
+  <circle cx="256" cy="263" r="32" fill="#263238"/>
+  <path d="M186 304c42 44 98 44 140 0" fill="none" stroke="#263238" stroke-width="28" stroke-linecap="round"/>
+  <path d="M160 400h192" fill="none" stroke="#25b6a4" stroke-width="34" stroke-linecap="round"/>
+</svg>

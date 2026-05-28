@@ -39,6 +39,11 @@ const bookingSuccessModal = document.querySelector('#bookingSuccessModal');
 const bookingSuccessClose = document.querySelector('#bookingSuccessClose');
 const bookingSuccessSummary = document.querySelector('#bookingSuccessSummary');
 const bookingSuccessOrders = document.querySelector('#bookingSuccessOrders');
+const accountTimePickerModal = document.querySelector('#accountTimePickerModal');
+const accountTimePickerTitle = document.querySelector('#accountTimePickerTitle');
+const accountTimePickerWheel = document.querySelector('#accountTimePickerWheel');
+const accountTimePickerCancel = document.querySelector('#accountTimePickerCancel');
+const accountTimePickerDone = document.querySelector('#accountTimePickerDone');
 const accountTabs = document.querySelector('#accountTabs');
 const accountHeroEn = document.querySelector('.account-hero .eyebrow');
 const accountHeroTitle = document.querySelector('.account-hero h1');
@@ -64,7 +69,7 @@ const accountBoardingStartCards = document.querySelector('#accountBoardingStartC
 const accountBoardingEndCards = document.querySelector('#accountBoardingEndCards');
 
 let currentUser = null;
-let currentProfile = { bookings: [], orders: [] };
+let currentProfile = { bookings: [], orders: [], balanceLogs: [] };
 let selectedPetPhoto = '';
 let authMode = 'login';
 let activeView = 'booking';
@@ -87,6 +92,13 @@ const appointmentState = {
   startDateTime: '',
   endDateTime: ''
 };
+const timePickerState = {
+  container: null,
+  select: null,
+  stateKey: '',
+  options: [],
+  pendingValue: ''
+};
 
 const viewTitles = {
   booking: { title: '服务预约', en: 'Service Booking' },
@@ -107,6 +119,11 @@ function escapeHtml(value) {
 
 function formatMoney(value) {
   return `¥${Number(value || 0).toFixed(2)}`;
+}
+
+function formatSignedMoney(value) {
+  const amount = Number(value || 0);
+  return `${amount > 0 ? '+' : ''}${formatMoney(amount)}`;
 }
 
 function formatDateTime(date, time) {
@@ -275,6 +292,112 @@ function syncChoiceCards(container, value, attribute) {
   });
 }
 
+function timeLabelParts(label) {
+  const parts = String(label || '').trim().split(/\s+/).filter(Boolean);
+  return {
+    time: parts.pop() || '',
+    day: parts.join(' ')
+  };
+}
+
+function renderTimeTrigger(container, select, options, stateKey) {
+  const selectedValue = options.some((item) => item.value === appointmentState[stateKey])
+    ? appointmentState[stateKey]
+    : (options[0] ? options[0].value : '');
+  appointmentState[stateKey] = selectedValue;
+  select.value = selectedValue;
+  const selectedOption = options.find((item) => item.value === selectedValue);
+  if (!selectedOption) {
+    container.innerHTML = '<button class="time-picker-trigger empty" type="button" disabled><strong>暂无可约时段</strong></button>';
+    return;
+  }
+  const label = timeLabelParts(selectedOption.label);
+  container.innerHTML = `
+    <button class="time-picker-trigger" type="button" data-open-time-picker>
+      <span>${escapeHtml(label.day)}</span>
+      <strong>${escapeHtml(label.time)}</strong>
+    </button>
+  `;
+}
+
+function selectTimeValue(container, select, stateKey, value) {
+  if (!value) return;
+  appointmentState[stateKey] = value;
+  select.value = value;
+  renderTimeTrigger(container, select, container.timeOptions || [], stateKey);
+}
+
+function setPickerPendingValue(value, shouldScroll = true) {
+  if (!value) return;
+  timePickerState.pendingValue = value;
+  accountTimePickerWheel.querySelectorAll('button[data-picker-time-value]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.pickerTimeValue === value);
+  });
+  if (!shouldScroll) return;
+  const activeButton = accountTimePickerWheel.querySelector('button.active');
+  if (activeButton) {
+    activeButton.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest'
+    });
+  }
+}
+
+function selectCenteredPickerValue() {
+  const buttons = [...accountTimePickerWheel.querySelectorAll('button[data-picker-time-value]')];
+  if (!buttons.length) return;
+  const containerRect = accountTimePickerWheel.getBoundingClientRect();
+  const centerY = containerRect.top + (containerRect.height / 2);
+  const closestButton = buttons.reduce((closest, button) => {
+    const rect = button.getBoundingClientRect();
+    const distance = Math.abs((rect.top + (rect.height / 2)) - centerY);
+    return !closest || distance < closest.distance ? { button, distance } : closest;
+  }, null)?.button;
+  if (closestButton) {
+    setPickerPendingValue(closestButton.dataset.pickerTimeValue, false);
+  }
+}
+
+function renderPickerWheel(options, selectedValue) {
+  accountTimePickerWheel.innerHTML = options.map((item) => {
+    const label = timeLabelParts(item.label);
+    return `
+      <button class="${item.value === selectedValue ? 'active' : ''}" type="button" data-picker-time-value="${escapeHtml(item.value)}">
+        <span>${escapeHtml(label.day)}</span>
+        <strong>${escapeHtml(label.time)}</strong>
+      </button>
+    `;
+  }).join('');
+  requestAnimationFrame(() => setPickerPendingValue(selectedValue));
+}
+
+function closeTimePicker() {
+  accountTimePickerModal.hidden = true;
+  timePickerState.container = null;
+  timePickerState.select = null;
+  timePickerState.stateKey = '';
+  timePickerState.options = [];
+  timePickerState.pendingValue = '';
+}
+
+function openTimePicker(container) {
+  const options = container.timeOptions || [];
+  if (!options.length) return;
+  const stateKey = container.timeStateKey;
+  const selectedValue = options.some((item) => item.value === appointmentState[stateKey])
+    ? appointmentState[stateKey]
+    : options[0].value;
+  timePickerState.container = container;
+  timePickerState.select = container.timeSelect;
+  timePickerState.stateKey = stateKey;
+  timePickerState.options = options;
+  timePickerState.pendingValue = selectedValue;
+  accountTimePickerTitle.textContent = container.timeTitle || '选择时间';
+  renderPickerWheel(options, selectedValue);
+  accountTimePickerModal.hidden = false;
+}
+
 function setAuthMode(nextMode) {
   authMode = nextMode === 'register' ? 'register' : 'login';
   const isRegister = authMode === 'register';
@@ -293,19 +416,15 @@ function setAuthMode(nextMode) {
 }
 
 function renderTimeCards(container, select, options, stateKey) {
-  const selectedValue = options.some((item) => item.value === appointmentState[stateKey])
-    ? appointmentState[stateKey]
-    : (options[0] ? options[0].value : '');
-  appointmentState[stateKey] = selectedValue;
-  select.value = selectedValue;
-  container.innerHTML = options.length
-    ? options.map((item, index) => `
-      <button class="${item.value === selectedValue ? 'active' : ''}" type="button" data-time-value="${escapeHtml(item.value)}">
-        <strong>${escapeHtml(item.label.split(' ').slice(-1)[0] || item.label)}</strong>
-        <small>${escapeHtml(item.label.replace(/\s+\S+$/, ''))}</small>
-      </button>
-    `).join('')
-    : '<p class="empty-text dark">暂无可约时段</p>';
+  container.timeOptions = options;
+  container.timeSelect = select;
+  container.timeStateKey = stateKey;
+  container.timeTitle = container === accountTimeCards
+    ? '选择预约时间'
+    : container === accountBoardingStartCards
+      ? '选择开始时间'
+      : '选择结束时间';
+  renderTimeTrigger(container, select, options, stateKey);
 }
 
 function renderAppointmentSlots(slots) {
@@ -542,12 +661,35 @@ function renderPets(pets = []) {
   `).join('');
 }
 
-function renderOrders(orders = []) {
-  const total = orders.length;
+function buildBillingItems(profile = currentProfile) {
+  const balanceItems = (profile.balanceLogs || []).map((log) => ({
+    id: log.id,
+    title: log.changeTypeLabel || '余额变动',
+    amount: Number(log.deltaAmount || 0),
+    amountText: formatSignedMoney(log.deltaAmount),
+    status: `余额 ${formatMoney(log.balanceBefore)} -> ${formatMoney(log.balanceAfter)}`,
+    remark: log.remark || '',
+    createdAt: log.createdAt,
+    sortAt: log.createdAt,
+    signed: true
+  }));
+  const orderItems = (profile.orders || []).map((order) => ({
+    ...order,
+    amount: Number(order.amount || 0),
+    amountText: formatMoney(order.amount),
+    status: order.status || '',
+    sortAt: order.bookingCreatedAt || order.createdAt || order.date || ''
+  }));
+  return [...balanceItems, ...orderItems].sort((a, b) => String(b.sortAt || '').localeCompare(String(a.sortAt || '')));
+}
+
+function renderOrders(profile = currentProfile) {
+  const entries = buildBillingItems(profile);
+  const total = entries.length;
   const totalPages = Math.max(1, Math.ceil(total / orderPageSize));
   orderPage = Math.min(orderPage, totalPages);
   const start = (orderPage - 1) * orderPageSize;
-  const pageOrders = orders.slice(start, start + orderPageSize);
+  const pageOrders = entries.slice(start, start + orderPageSize);
   if (!pageOrders.length) {
     orderList.innerHTML = '<p class="empty-text dark">暂无账单明细</p>';
   } else {
@@ -561,7 +703,7 @@ function renderOrders(orders = []) {
           ${order.remark ? `<p>${escapeHtml(order.remark)}</p>` : ''}
         </div>
         <div>
-          <em>${formatMoney(order.amount)}</em>
+          <em class="${order.signed ? (Number(order.amount || 0) >= 0 ? 'money-positive' : 'money-negative') : ''}">${escapeHtml(order.amountText || formatMoney(order.amount))}</em>
           <small>${escapeHtml(order.status || '')}</small>
         </div>
       </article>
@@ -579,7 +721,7 @@ function renderProfile(profile) {
   renderBookings(profile.bookings || []);
   renderPets(profile.user.pets || []);
   renderQuickPets(profile.user.pets || []);
-  renderOrders(profile.orders || []);
+  renderOrders(profile);
   setActiveView(activeView);
 }
 
@@ -603,9 +745,9 @@ function setActiveView(view) {
   });
 }
 
-async function loadProfile() {
-  if (!currentUser) return;
-  const response = await fetch(`/api/user/profile?userId=${encodeURIComponent(currentUser.id)}`);
+async function loadProfile(user = currentUser) {
+  if (!user) return;
+  const response = await fetch(`/api/user/profile?userId=${encodeURIComponent(user.id)}`);
   const result = await response.json();
   if (!response.ok || result.code !== 0) {
     throw new Error(result.message || '账户信息加载失败');
@@ -704,22 +846,42 @@ accountPetQuickCards.addEventListener('click', (event) => {
 
 [accountTimeCards, accountBoardingStartCards, accountBoardingEndCards].forEach((container) => {
   container.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-time-value]');
+    const button = event.target.closest('button[data-open-time-picker]');
     if (!button) return;
-    const stateKey = container === accountTimeCards
-      ? 'dateTime'
-      : container === accountBoardingStartCards
-        ? 'startDateTime'
-        : 'endDateTime';
-    const select = container === accountTimeCards
-      ? accountBookingDateTime
-      : container === accountBoardingStartCards
-        ? accountBoardingStartDateTime
-        : accountBoardingEndDateTime;
-    appointmentState[stateKey] = button.dataset.timeValue;
-    select.value = button.dataset.timeValue;
-    syncChoiceCards(container, button.dataset.timeValue, 'data-time-value');
+    openTimePicker(container);
   });
+});
+
+let pickerScrollTimer = 0;
+accountTimePickerWheel.addEventListener('scroll', () => {
+  window.clearTimeout(pickerScrollTimer);
+  pickerScrollTimer = window.setTimeout(selectCenteredPickerValue, 120);
+});
+
+accountTimePickerWheel.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-picker-time-value]');
+  if (!button) return;
+  setPickerPendingValue(button.dataset.pickerTimeValue);
+});
+
+accountTimePickerCancel.addEventListener('click', closeTimePicker);
+
+accountTimePickerDone.addEventListener('click', () => {
+  if (timePickerState.container && timePickerState.select) {
+    selectTimeValue(
+      timePickerState.container,
+      timePickerState.select,
+      timePickerState.stateKey,
+      timePickerState.pendingValue
+    );
+  }
+  closeTimePicker();
+});
+
+accountTimePickerModal.addEventListener('click', (event) => {
+  if (event.target === accountTimePickerModal) {
+    closeTimePicker();
+  }
 });
 
 accountBookingForm.addEventListener('submit', async (event) => {
@@ -746,7 +908,7 @@ accountBookingForm.addEventListener('submit', async (event) => {
   const endDateTime = parseAppointmentDateTime(appointmentState.endDateTime);
   const remarkParts = [
     selectedCategory ? `服务类目：${selectedCategory.name}` : '',
-    selectedPet ? `宠物名字：${selectedPet.name}` : '宠物名字：未选择档案',
+    selectedPet ? `宠物名字：${selectedPet.name}` : '',
     sizeOption ? `宠物体型：${sizeOption.name}（${sizeRangeText(sizeOption, petType)}）` : '',
     petWeight ? `宠物体重：${petWeight}kg` : '',
     `预估价格：${formatMoney(price)}`,
@@ -780,7 +942,7 @@ accountBookingForm.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         serviceId: service.id,
-        petName: selectedPet ? selectedPet.name : (currentUser.accountName || currentUser.name),
+        petName: selectedPet ? selectedPet.name : '',
         petType,
         petSize,
         petWeight,
@@ -831,15 +993,15 @@ bookingNext.addEventListener('click', () => {
 orderPrev.addEventListener('click', () => {
   if (orderPage > 1) {
     orderPage -= 1;
-    renderOrders(currentProfile.orders || []);
+    renderOrders(currentProfile);
   }
 });
 
 orderNext.addEventListener('click', () => {
-  const totalPages = Math.max(1, Math.ceil((currentProfile.orders || []).length / orderPageSize));
+  const totalPages = Math.max(1, Math.ceil(buildBillingItems(currentProfile).length / orderPageSize));
   if (orderPage < totalPages) {
     orderPage += 1;
-    renderOrders(currentProfile.orders || []);
+    renderOrders(currentProfile);
   }
 });
 
@@ -1092,21 +1254,26 @@ passwordForm.addEventListener('submit', async (event) => {
   }
 });
 
-try {
-  setCurrentUser(JSON.parse(window.localStorage.getItem('petHomeUser') || 'null'));
-} catch (error) {
-  window.localStorage.removeItem('petHomeUser');
-  setCurrentUser(null);
+function readCachedUser() {
+  try {
+    const user = JSON.parse(window.localStorage.getItem('petHomeUser') || 'null');
+    return user && user.id ? user : null;
+  } catch (error) {
+    window.localStorage.removeItem('petHomeUser');
+    return null;
+  }
 }
+
+const cachedUser = readCachedUser();
+setCurrentUser(null);
 
 setAuthMode('login');
 setActiveView(activeView);
 loadAppointmentOptions();
 
-if (currentUser) {
-  loadProfile().catch((error) => {
-    loginPanel.hidden = false;
-    dashboard.hidden = true;
-    loginMessage.textContent = error.message || '账户信息加载失败';
+if (cachedUser) {
+  loadProfile(cachedUser).catch((error) => {
+    setCurrentUser(null);
+    loginMessage.textContent = error.message || '账户信息加载失败，请重新登录';
   });
 }

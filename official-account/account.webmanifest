@@ -1,0 +1,19 @@
+{
+  "name": "宠之寓服务中心",
+  "short_name": "宠之寓",
+  "description": "宠之寓会员服务中心，支持预约、订单、宠物档案和账单管理。",
+  "start_url": "/official/account.html",
+  "scope": "/official/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fffaf5",
+  "theme_color": "#f28c38",
+  "icons": [
+    {
+      "src": "/official/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

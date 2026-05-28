@@ -3,7 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f28c38">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="宠之寓服务中心">
     <title>服务中心 | 宠之寓</title>
+    <link rel="manifest" href="./account.webmanifest">
+    <link rel="icon" href="./app-icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./app-icon.svg">
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body class="account-page">
@@ -107,11 +114,6 @@
                 <span>宠物体重</span>
                 <input id="accountPetWeight" type="number" name="petWeight" min="0" step="0.1" placeholder="kg，可选">
               </label>
-              <div class="price-preview" id="accountPricePreview">
-                <span>预估价格</span>
-                <strong>¥0.00</strong>
-                <small>价格会根据种类和体型粗略估算，最终以到店确认为准。</small>
-              </div>
               <div class="form-field full single-time-field account-single-time-field">
                 <span>预约时间</span>
                 <div class="choice-grid time-choice-grid" id="accountTimeCards"></div>
@@ -126,6 +128,11 @@
                 <span>结束时间</span>
                 <div class="choice-grid time-choice-grid" id="accountBoardingEndCards"></div>
                 <select class="select-fallback" name="endDateTime" id="accountBoardingEndDateTime"></select>
+              </div>
+              <div class="price-preview full" id="accountPricePreview">
+                <span>预估价格</span>
+                <strong>¥0.00</strong>
+                <small>价格会根据种类和体型粗略估算，最终以到店确认为准。</small>
               </div>
               <label class="full">
                 <span>备注</span>
@@ -265,6 +272,21 @@
       </div>
     </div>
 
+    <div class="time-picker-modal" id="accountTimePickerModal" hidden>
+      <div class="time-picker-panel">
+        <div class="time-picker-head">
+          <button id="accountTimePickerCancel" type="button">取消</button>
+          <strong id="accountTimePickerTitle">选择时间</strong>
+          <button id="accountTimePickerDone" type="button">完成</button>
+        </div>
+        <div class="time-picker-wheel-wrap">
+          <div class="time-picker-highlight"></div>
+          <div class="time-picker-wheel" id="accountTimePickerWheel"></div>
+        </div>
+      </div>
+    </div>
+
     <script src="./account.js"></script>
+    <script src="./pwa.js"></script>
   </body>
 </html>

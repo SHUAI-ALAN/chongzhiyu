@@ -134,6 +134,25 @@
 - `completed`
 - `canceled`
 
+### 会员余额调整
+
+`PATCH /api/admin/members/:id/balance`
+
+```json
+{
+  "balance": 350,
+  "remark": "顾客现金充值 50 元"
+}
+```
+
+后台修改会员余额必须走这个接口。后端会写入余额流水，记录调整前余额、变动金额、调整后余额、操作管理员、备注和时间。
+
+### 会员余额流水
+
+`GET /api/admin/member-balance-logs?memberId=mem_xxx&limit=80`
+
+返回最近余额流水。`GET /api/user/profile` 也会返回当前用户的 `balanceLogs`，用于服务中心展示账单明细。
+
 ### 公众号线索
 
 `GET /api/admin/subscribers`

@@ -11,6 +11,7 @@ const userOrderPrev = document.querySelector('#userOrderPrev');
 const userOrderNext = document.querySelector('#userOrderNext');
 const userOrderPageInfo = document.querySelector('#userOrderPageInfo');
 const memberListNode = document.querySelector('#memberList');
+const memberBalanceLogListNode = document.querySelector('#memberBalanceLogList');
 const memberOrderListNode = document.querySelector('#memberOrderList');
 const memberOrderPrev = document.querySelector('#memberOrderPrev');
 const memberOrderNext = document.querySelector('#memberOrderNext');
@@ -68,6 +69,9 @@ const adminPasswordForm = document.querySelector('#adminPasswordForm');
 const adminPasswordClose = document.querySelector('#adminPasswordClose');
 const adminPasswordMessage = document.querySelector('#adminPasswordMessage');
 const adminPageTitle = document.querySelector('#adminPageTitle');
+const managementCenterButton = document.querySelector('#managementCenterButton');
+const managementCenterClose = document.querySelector('#managementCenterClose');
+const managementMenu = document.querySelector('#managementMenu');
 
 const statusActions = [
   { status: 'confirmed', label: '确认', primary: true },
@@ -105,9 +109,8 @@ let activeAdminView = 'overview';
 const adminViewTitles = {
   overview: { title: '运营概览' },
   store: { title: '门店信息' },
-  bookings: { title: '预约管理' },
-  users: { title: '用户查询' },
-  members: { title: '会员管理' },
+  bookings: { title: '订单管理' },
+  users: { title: '用户管理' },
   notices: { title: '门店公告' },
   subscribers: { title: '订阅线索' }
 };
@@ -181,10 +184,10 @@ async function checkAdminSession() {
 
 function renderMetrics(summary) {
   const items = [
-    ['总预约', summary.totalBookings],
+    ['总订单', summary.totalBookings],
     ['待确认', summary.pending],
     ['已确认', summary.confirmed],
-    ['今日预约', summary.todayBookings],
+    ['今日订单', summary.todayBookings],
     ['未来待服务', summary.upcoming],
     ['会员数', summary.members],
     ['会员余额', `¥${Number(summary.memberBalance || 0).toFixed(2)}`],
@@ -250,54 +253,90 @@ function formatLocalDateTime(value) {
   });
 }
 
+function formatSignedMoney(value) {
+  const amount = Number(value || 0);
+  const prefix = amount > 0 ? '+' : '';
+  return `${prefix}¥${amount.toFixed(2)}`;
+}
+
+function closeManagementMenu() {
+  managementMenu.hidden = true;
+}
+
+function userFilterLabel(filterValue) {
+  return {
+    all: '全部用户',
+    normal: '普通用户',
+    basic: '初级会员',
+    middle: '中级会员',
+    senior: '高级会员'
+  }[filterValue] || '用户';
+}
+
+function filterMembersByUserType(members, filterValue) {
+  if (!filterValue || filterValue === 'all') {
+    return members;
+  }
+  return members.filter((member) => member.level === filterValue);
+}
+
+function getVisibleBookingPetName(booking) {
+  const petName = String(booking.petName || '').trim();
+  const customerName = String(booking.customerName || '').trim();
+  if (!petName || petName === customerName) {
+    return '';
+  }
+  return petName;
+}
+
+function getVisibleBookingRemark(booking) {
+  return String(booking.remark || '')
+    .split('；')
+    .map((part) => part.trim())
+    .filter((part) => part && part !== '宠物名字：未选择档案')
+    .join('；');
+}
+
 function renderBookings(bookings) {
   if (!bookings.length) {
-    bookingListNode.innerHTML = '<div class="empty">暂无预约记录</div>';
+    bookingListNode.innerHTML = '<div class="empty">暂无订单记录</div>';
     return;
   }
 
   bookingListNode.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>时间</th>
-          <th>服务</th>
-          <th>宠物</th>
-          <th>客户</th>
-          <th>状态</th>
-          <th>收款</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${bookings.map((booking) => `
-          <tr>
-            <td>
-              <div class="cell-main">${escapeHtml(booking.date)} ${escapeHtml(booking.time)}</div>
-              <div class="cell-sub">提交于 ${escapeHtml(formatLocalDateTime(booking.createdAt))}</div>
-            </td>
-            <td>
-              <div class="cell-main">${escapeHtml(booking.serviceName)}</div>
-              <div class="cell-sub">${escapeHtml(booking.remark || '无备注')}</div>
-            </td>
-            <td>
-              <div class="cell-main">${escapeHtml(booking.petName)}</div>
-              <div class="cell-sub">${escapeHtml(booking.petType || '未填写')}</div>
-            </td>
-            <td>
-              <div class="cell-main">${escapeHtml(booking.customerName)}</div>
-              <div class="cell-sub">${escapeHtml(booking.phone)}</div>
-              <div class="user-badge ${escapeHtml(booking.userType)}">
-                ${escapeHtml(booking.userTypeLabel)}${booking.memberLevelLabel ? ` · ${escapeHtml(booking.memberLevelLabel)}` : ''}
+    <div class="admin-order-list">
+      ${bookings.map((booking) => {
+        const visiblePetName = getVisibleBookingPetName(booking);
+        const visibleRemark = getVisibleBookingRemark(booking);
+        const petLine = visiblePetName
+          ? [visiblePetName, booking.petType].filter(Boolean).join(' · ')
+          : '';
+        const dateLines = [
+          `预约 ${booking.date} ${booking.time}`,
+          `提交 ${formatLocalDateTime(booking.createdAt)}`,
+          booking.completedAt ? `完成 ${formatLocalDateTime(booking.completedAt)}` : ''
+        ].filter(Boolean);
+        return `
+          <article class="admin-order-card">
+            <div class="admin-order-main">
+              <div class="admin-order-title">
+                <strong>${escapeHtml(booking.serviceName || '订单项目')}</strong>
+                <span class="status ${escapeHtml(booking.status)}">${escapeHtml(booking.statusLabel)}</span>
               </div>
-            </td>
-            <td><span class="status ${escapeHtml(booking.status)}">${escapeHtml(booking.statusLabel)}</span></td>
-            <td>
-              <div class="cell-main">¥${Number(booking.amount || 0).toFixed(2)}</div>
-              <div class="cell-sub">${escapeHtml(booking.paymentStatusLabel || booking.paymentStatus || '待支付')}</div>
-              ${booking.paidAt ? `<div class="cell-sub">${escapeHtml(booking.paidAt)}</div>` : ''}
-            </td>
-            <td>
+              ${visibleRemark ? `<p class="admin-order-note">${escapeHtml(visibleRemark)}</p>` : ''}
+              <div class="admin-order-person">
+                <span>${escapeHtml(booking.customerName)}</span>
+                <small>${escapeHtml(booking.phone)}</small>
+                <em class="user-badge ${escapeHtml(booking.userType)}">
+                  ${escapeHtml(booking.userTypeLabel)}${booking.memberLevelLabel ? ` · ${escapeHtml(booking.memberLevelLabel)}` : ''}
+                </em>
+                ${petLine ? `<small class="admin-order-pet">宠物：${escapeHtml(petLine)}</small>` : ''}
+              </div>
+            </div>
+            <div class="admin-order-side">
+              <strong>¥${Number(booking.amount || 0).toFixed(2)}</strong>
+              <small>${escapeHtml(booking.paymentStatusLabel || booking.paymentStatus || '待支付')}</small>
+              ${booking.paidAt ? `<small>${escapeHtml(formatLocalDateTime(booking.paidAt))}</small>` : ''}
               <div class="booking-actions">
                 ${statusActions.map((action) => `
                   <button
@@ -315,11 +354,14 @@ function renderBookings(bookings) {
                   >确认收款</button>
                 ` : ''}
               </div>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+              <div class="admin-order-dates">
+                ${dateLines.map((line) => `<span>${escapeHtml(line)}</span>`).join('')}
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('')}
+    </div>
   `;
 }
 
@@ -346,7 +388,7 @@ function renderUsers(users) {
       <tbody>
         ${users.map((user) => `
           <tr>
-            <td><span class="user-badge ${escapeHtml(user.userType)}">${escapeHtml(user.userTypeLabel)}</span></td>
+            <td><span class="user-badge ${escapeHtml(user.level || user.userType)}">${escapeHtml(user.userTypeLabel)}</span></td>
             <td>
               <div class="cell-main">${escapeHtml(user.name || '-')}</div>
               <div class="cell-sub">${escapeHtml(user.accountName || '无账户名')}</div>
@@ -462,14 +504,12 @@ function renderMemberOptions(members) {
   )).join('');
 }
 
-function renderMembers(members) {
+function renderMembers(members, filterValue = 'all') {
   if (!members.length) {
-    memberListNode.innerHTML = '<div class="empty">暂无会员</div>';
-    renderMemberOptions([]);
+    memberListNode.innerHTML = `<div class="empty">暂无${escapeHtml(userFilterLabel(filterValue))}</div>`;
     return;
   }
 
-  renderMemberOptions(members);
   memberListNode.innerHTML = members.map((member) => `
     <article class="member-admin-item">
       <div>
@@ -483,15 +523,68 @@ function renderMembers(members) {
       </div>
       <div class="member-actions">
         <select data-member-id="${escapeHtml(member.id)}" data-field="level">
+          <option value="normal" ${member.level === 'normal' ? 'selected' : ''}>普通</option>
           <option value="basic" ${member.level === 'basic' ? 'selected' : ''}>初级</option>
           <option value="middle" ${member.level === 'middle' ? 'selected' : ''}>中级</option>
           <option value="senior" ${member.level === 'senior' ? 'selected' : ''}>高级</option>
         </select>
-        <input data-member-id="${escapeHtml(member.id)}" data-field="balance" type="number" min="0" step="0.01" value="${Number(member.balance || 0)}">
+        <div class="member-balance-form">
+          <input data-balance-value type="number" min="0" step="0.01" value="${Number(member.balance || 0)}" aria-label="调整后余额">
+          <input data-balance-remark type="text" maxlength="60" placeholder="调整原因">
+          <button data-member-id="${escapeHtml(member.id)}" data-action="save-balance" class="primary" type="button">保存余额</button>
+        </div>
         <button data-member-id="${escapeHtml(member.id)}" data-action="delete-member" class="danger">删除</button>
       </div>
     </article>
   `).join('');
+}
+
+function renderMemberBalanceLogs(logs = []) {
+  if (!logs.length) {
+    memberBalanceLogListNode.innerHTML = '<div class="empty">暂无余额流水</div>';
+    return;
+  }
+
+  memberBalanceLogListNode.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>时间</th>
+          <th>会员</th>
+          <th>变动</th>
+          <th>余额</th>
+          <th>来源</th>
+          <th>操作人</th>
+          <th>备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${logs.map((log) => {
+    const delta = Number(log.deltaAmount || 0);
+    return `
+          <tr>
+            <td>${escapeHtml(formatLocalDateTime(log.createdAt))}</td>
+            <td>
+              <div class="cell-main">${escapeHtml(log.memberName || log.accountName || log.phone)}</div>
+              <div class="cell-sub">${escapeHtml(log.phone)}</div>
+            </td>
+            <td>
+              <div class="balance-change ${delta >= 0 ? 'positive' : 'negative'}">${escapeHtml(formatSignedMoney(delta))}</div>
+              <div class="cell-sub">${escapeHtml(log.changeTypeLabel || '余额变动')}</div>
+            </td>
+            <td>
+              <div class="cell-main">¥${Number(log.balanceAfter || 0).toFixed(2)}</div>
+              <div class="cell-sub">原 ¥${Number(log.balanceBefore || 0).toFixed(2)}</div>
+            </td>
+            <td>${escapeHtml(log.sourceId || log.sourceType || '-')}</td>
+            <td>${escapeHtml(log.operatorName || '-')}</td>
+            <td>${escapeHtml(log.remark || '-')}</td>
+          </tr>
+        `;
+  }).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 function renderMemberOrders(data) {
@@ -593,7 +686,9 @@ async function loadDashboard() {
     bookingPrev.disabled = bookingState.page <= 1;
     bookingNext.disabled = bookingState.page >= bookingState.totalPages;
     renderUsers(userData.users);
-    renderMembers(memberData.members);
+    renderMemberOptions(memberData.members);
+    renderMembers(filterMembersByUserType(memberData.members, userType), userType);
+    renderMemberBalanceLogs(memberData.balanceLogs || []);
     renderMemberOrders(memberData);
     renderNotices(noticeData.notices);
     renderSubscribers(subscriberData.subscribers);
@@ -706,6 +801,35 @@ memberListNode.addEventListener('change', async (event) => {
 });
 
 memberListNode.addEventListener('click', async (event) => {
+  const balanceButton = event.target.closest('button[data-action="save-balance"]');
+  if (balanceButton) {
+    const item = balanceButton.closest('.member-admin-item');
+    const balanceInput = item ? item.querySelector('[data-balance-value]') : null;
+    const remarkInput = item ? item.querySelector('[data-balance-remark]') : null;
+    const remark = remarkInput ? remarkInput.value.trim() : '';
+    if (!remark) {
+      showToast('请填写余额调整原因');
+      return;
+    }
+    balanceButton.disabled = true;
+    try {
+      await api(`/api/admin/members/${encodeURIComponent(balanceButton.dataset.memberId)}/balance`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          balance: balanceInput ? balanceInput.value : '',
+          remark
+        })
+      });
+      showToast('会员余额已调整');
+      await loadDashboard();
+    } catch (error) {
+      showToast(error.message || '调整余额失败');
+    } finally {
+      balanceButton.disabled = false;
+    }
+    return;
+  }
+
   const button = event.target.closest('button[data-action="delete-member"]');
   if (!button) {
     return;
@@ -838,7 +962,10 @@ noticeListNode.addEventListener('click', async (event) => {
   }
 });
 
-refreshButton.addEventListener('click', loadDashboard);
+refreshButton.addEventListener('click', () => {
+  closeManagementMenu();
+  loadDashboard();
+});
 statusFilter.addEventListener('change', () => {
   bookingState.page = 1;
   loadDashboard();
@@ -908,6 +1035,25 @@ document.querySelectorAll('[data-admin-tab]').forEach((node) => {
   });
 });
 
+managementCenterButton.addEventListener('click', () => {
+  managementMenu.hidden = false;
+});
+
+managementCenterClose.addEventListener('click', closeManagementMenu);
+
+managementMenu.addEventListener('click', (event) => {
+  if (event.target === managementMenu) {
+    closeManagementMenu();
+  }
+});
+
+document.querySelectorAll('[data-admin-center-target]').forEach((node) => {
+  node.addEventListener('click', () => {
+    setAdminView(node.dataset.adminCenterTarget);
+    closeManagementMenu();
+  });
+});
+
 adminLoginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = adminLoginForm.querySelector('button[type="submit"]');
@@ -944,10 +1090,12 @@ adminLogoutButton.addEventListener('click', async () => {
   } catch (error) {
     // local logout should still happen even if the session has expired
   }
+  closeManagementMenu();
   setAdminSession(null);
 });
 
 changeAdminPasswordButton.addEventListener('click', () => {
+  closeManagementMenu();
   adminPasswordModal.hidden = false;
   adminPasswordMessage.textContent = '';
   adminPasswordForm.reset();
@@ -995,7 +1143,9 @@ adminPasswordForm.addEventListener('submit', async (event) => {
 });
 
 const initialHash = window.location.hash.replace('#', '');
-if (validAdminViews.has(initialHash)) {
+if (initialHash === 'members') {
+  activeAdminView = 'users';
+} else if (validAdminViews.has(initialHash)) {
   activeAdminView = initialHash;
 }
 setAdminView(activeAdminView);

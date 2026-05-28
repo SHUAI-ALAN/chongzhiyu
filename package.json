@@ -11,9 +11,9 @@
     "check:json": "node scripts/check-json.js",
     "check:miniapp": "node scripts/check-miniapp.js",
     "smoke": "node scripts/smoke-api.js",
-    "tunnel:start": "powershell -ExecutionPolicy Bypass -File scripts/start-tunnel.ps1",
-    "tunnel:restart": "powershell -ExecutionPolicy Bypass -File scripts/start-tunnel.ps1 -Restart",
-    "tunnel:stop": "powershell -ExecutionPolicy Bypass -File scripts/stop-tunnel.ps1"
+    "tunnel:start": "node scripts/start-tunnel.js",
+    "tunnel:restart": "node scripts/start-tunnel.js --restart",
+    "tunnel:stop": "node scripts/stop-tunnel.js"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

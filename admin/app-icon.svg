@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="宠之寓管理后台">
+  <rect width="512" height="512" rx="112" fill="#263238"/>
+  <rect x="116" y="126" width="280" height="260" rx="44" fill="#fff6eb"/>
+  <path d="M162 202h188M162 258h188M162 314h118" fill="none" stroke="#263238" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="352" cy="314" r="34" fill="#f28c38"/>
+  <path d="M226 98h60" fill="none" stroke="#25b6a4" stroke-width="30" stroke-linecap="round"/>
+</svg>

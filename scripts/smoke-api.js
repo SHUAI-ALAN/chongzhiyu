@@ -19,7 +19,7 @@ function createServer() {
 
 function listen(server) {
   return new Promise((resolve) => {
-    server.listen(0, () => resolve(server.address().port));
+    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
   });
 }
 
@@ -54,7 +54,6 @@ async function main() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         serviceId: service.id,
-        petName: '团团',
         petType: 'dog',
         customerName: '李女士',
         phone: '13800138000',
@@ -72,7 +71,6 @@ async function main() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         serviceId: service.id,
-        petName: '团团',
         customerName: '李女士',
         phone: '13800138000',
         date: day.date,
@@ -174,6 +172,30 @@ async function main() {
     if (!payingMember) {
       throw new Error('seed member missing for payment smoke');
     }
+    const balanceBeforeAdjustment = Number(payingMember.balance || 0);
+    const balanceResponse = await fetch(`${base}/api/admin/members/${payingMember.id}/balance`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        balance: balanceBeforeAdjustment + 50,
+        remark: 'smoke test balance adjustment'
+      })
+    });
+    const balancePatch = await balanceResponse.json();
+    if (
+      balancePatch.code !== 0
+      || Number(balancePatch.data.member.balance || 0) !== balanceBeforeAdjustment + 50
+      || balancePatch.data.balanceLog.changeType !== 'admin_adjustment'
+    ) {
+      throw new Error(`balance adjustment failed: ${balancePatch.message}`);
+    }
+    const balanceLogsData = await getJson(base, '/api/admin/member-balance-logs?limit=10', adminToken);
+    if (!balanceLogsData.balanceLogs.some((item) => item.id === balancePatch.data.balanceLog.id)) {
+      throw new Error('balance log missing after adjustment');
+    }
     const payResponse = await fetch(`${base}/api/user/bookings/${createdBooking.id}/pay`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -205,6 +227,9 @@ async function main() {
     const profileData = await getJson(base, `/api/user/profile?userId=${payingMember.id}`);
     if (!profileData.user.pets.some((item) => item.name === '奶糖')) {
       throw new Error('pet missing from user profile');
+    }
+    if (!profileData.balanceLogs.some((item) => item.changeType === 'member_payment')) {
+      throw new Error('member payment balance log missing from user profile');
     }
     if (!profileData.user.pets.some((item) => item.name === '奶糖' && item.groomingDue)) {
       throw new Error('pet grooming reminder missing from user profile');

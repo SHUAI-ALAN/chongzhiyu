@@ -3,41 +3,29 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#263238">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="宠之寓后台">
     <title>宠之寓门店后台</title>
+    <link rel="manifest" href="./admin.webmanifest">
+    <link rel="icon" href="./app-icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./app-icon.svg">
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <aside class="sidebar">
-      <div class="brand">
+    <header class="topbar">
+      <div class="topbar-title">
         <span class="brand-mark">寓</span>
         <div>
-          <strong>宠之寓</strong>
-          <small>门店后台</small>
+          <strong id="adminPageTitle">运营概览</strong>
+          <small>宠之寓门店后台</small>
         </div>
       </div>
-      <nav class="admin-side-tabs">
-        <button type="button" data-admin-tab="overview">概览</button>
-        <button type="button" data-admin-tab="store">门店</button>
-        <button type="button" data-admin-tab="bookings">预约</button>
-        <button type="button" data-admin-tab="users">用户</button>
-        <button type="button" data-admin-tab="members">会员</button>
-        <button type="button" data-admin-tab="notices">公告</button>
-        <button type="button" data-admin-tab="subscribers">订阅</button>
-      </nav>
-      <div class="admin-actions">
-        <span id="adminName"></span>
-        <button id="changeAdminPasswordButton" type="button">修改密码</button>
-        <button id="adminLogoutButton" type="button">退出</button>
-        <button id="refreshButton">刷新</button>
-      </div>
-      <p id="storeMeta" class="store-meta"></p>
-    </aside>
+      <button class="management-trigger" id="managementCenterButton" type="button">管理中心</button>
+    </header>
 
     <main>
-      <header class="topbar">
-        <h1 id="adminPageTitle">运营概览</h1>
-      </header>
-
       <section class="panel admin-view" id="overview" data-admin-view="overview">
         <div class="panel-head">
           <div>
@@ -103,8 +91,8 @@
       <section class="panel admin-view" id="bookings" data-admin-view="bookings">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">Bookings</p>
-            <h2>预约记录</h2>
+            <p class="eyebrow">Orders</p>
+            <h2>订单记录</h2>
           </div>
           <div class="filters">
             <select id="statusFilter">
@@ -134,8 +122,10 @@
           <div class="filters">
             <select id="userTypeFilter">
               <option value="all">全部用户</option>
-              <option value="member">会员</option>
               <option value="normal">普通用户</option>
+              <option value="basic">初级会员</option>
+              <option value="middle">中级会员</option>
+              <option value="senior">高级会员</option>
             </select>
             <input id="userKeywordFilter" type="search" placeholder="姓名 / 账户名 / 手机号">
           </div>
@@ -155,36 +145,47 @@
           </div>
           <div id="userOrderList" class="table-shell"></div>
         </div>
-      </section>
 
-      <section class="panel admin-view" id="members" data-admin-view="members">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">Members</p>
-            <h2>会员管理</h2>
+        <div class="subpanel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">User Management</p>
+              <h2>用户管理</h2>
+            </div>
           </div>
+          <form id="memberForm" class="member-form">
+            <input id="memberAccountName" type="text" placeholder="账户名" maxlength="24" required>
+            <input id="memberName" type="text" placeholder="姓名" maxlength="24" required>
+            <input id="memberPhone" type="tel" placeholder="手机号" maxlength="11" required>
+            <select id="memberLevel">
+              <option value="normal">普通用户</option>
+              <option value="basic">初级会员</option>
+              <option value="middle">中级会员</option>
+              <option value="senior">高级会员</option>
+            </select>
+            <input id="memberBalance" type="number" placeholder="余额" min="0" step="0.01" value="0">
+            <input id="memberPoints" type="number" placeholder="积分" min="0" step="1" value="0">
+            <textarea id="memberRemark" placeholder="备注，例如：常洗护、寄养偏好等" maxlength="120"></textarea>
+            <button type="submit" class="primary">新增用户</button>
+          </form>
+          <div id="memberList" class="member-list-admin"></div>
         </div>
-        <form id="memberForm" class="member-form">
-          <input id="memberAccountName" type="text" placeholder="账户名" maxlength="24" required>
-          <input id="memberName" type="text" placeholder="姓名" maxlength="24" required>
-          <input id="memberPhone" type="tel" placeholder="手机号" maxlength="11" required>
-          <select id="memberLevel">
-            <option value="basic">初级会员</option>
-            <option value="middle">中级会员</option>
-            <option value="senior">高级会员</option>
-          </select>
-          <input id="memberBalance" type="number" placeholder="余额" min="0" step="0.01" value="0">
-          <input id="memberPoints" type="number" placeholder="积分" min="0" step="1" value="0">
-          <textarea id="memberRemark" placeholder="备注，例如：常洗护、寄养偏好等" maxlength="120"></textarea>
-          <button type="submit" class="primary">新增会员</button>
-        </form>
-        <div id="memberList" class="member-list-admin"></div>
+
+        <div class="subpanel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Balance Ledger</p>
+              <h2>余额流水</h2>
+            </div>
+          </div>
+          <div id="memberBalanceLogList" class="table-shell"></div>
+        </div>
 
         <div class="subpanel">
           <div class="panel-head">
             <div>
               <p class="eyebrow">Member Orders</p>
-              <h2>会员订单</h2>
+              <h2>用户订单</h2>
             </div>
             <div class="pagination">
               <button id="memberOrderPrev" type="button">上一页</button>
@@ -239,6 +240,30 @@
       </section>
     </main>
 
+    <nav class="admin-bottom-tabs" aria-label="后台功能">
+      <button type="button" data-admin-tab="bookings">订单</button>
+      <button type="button" data-admin-tab="users">用户</button>
+      <button type="button" data-admin-tab="overview">概览</button>
+    </nav>
+
+    <div class="management-menu" id="managementMenu" hidden>
+      <section class="management-card">
+        <button class="modal-close" id="managementCenterClose" type="button">×</button>
+        <p class="eyebrow">Management</p>
+        <h2>管理中心</h2>
+        <p id="adminName" class="admin-name"></p>
+        <p id="storeMeta" class="store-meta"></p>
+        <div class="management-grid">
+          <button type="button" data-admin-center-target="store">门店信息</button>
+          <button type="button" data-admin-center-target="notices">门店公告</button>
+          <button type="button" data-admin-center-target="subscribers">订阅线索</button>
+          <button id="changeAdminPasswordButton" type="button">修改密码</button>
+          <button id="refreshButton" type="button">刷新数据</button>
+          <button id="adminLogoutButton" class="danger" type="button">退出登录</button>
+        </div>
+      </section>
+    </div>
+
     <div class="login-screen" id="loginScreen">
       <form class="login-card" id="adminLoginForm">
         <p class="eyebrow">Admin</p>
@@ -265,5 +290,6 @@
 
     <div id="toast" class="toast"></div>
     <script src="./scripts.js"></script>
+    <script src="./pwa.js"></script>
   </body>
 </html>

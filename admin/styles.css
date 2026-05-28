@@ -17,6 +17,7 @@
 body {
   min-height: 100vh;
   margin: 0;
+  padding-bottom: calc(86px + env(safe-area-inset-bottom));
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--paper);
@@ -37,7 +38,8 @@ body {
   color: #ffffff;
 }
 
-.brand {
+.brand,
+.topbar-title {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -56,13 +58,16 @@ body {
 
 .brand strong,
 .brand small,
+.topbar-title strong,
+.topbar-title small,
 .admin-side-tabs button {
   display: block;
 }
 
-.brand small {
+.brand small,
+.topbar-title small {
   margin-top: 4px;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
 }
 
 .admin-side-tabs {
@@ -88,17 +93,16 @@ body {
 }
 
 .store-meta {
-  order: 4;
   margin: 0;
-  margin-top: 14px;
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
 }
 
 main {
-  margin-left: 232px;
-  padding: 24px 28px 32px;
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 16px 18px 32px;
 }
 
 .panel-head,
@@ -111,10 +115,31 @@ main {
 }
 
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 24;
   display: flex;
   align-items: center;
-  min-height: 42px;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 18px;
+  background: rgba(255, 248, 241, 0.94);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+}
+
+.topbar-title strong {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.management-trigger {
+  min-width: 92px;
+  color: #ffffff;
+  background: var(--ink);
+  border-color: var(--ink);
 }
 
 .admin-actions {
@@ -142,6 +167,98 @@ main {
   border: 0;
   border-radius: 0;
   font-size: 13px;
+}
+
+.admin-bottom-tabs {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 26;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 100%;
+  padding: 10px max(14px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-right));
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 24px rgba(61, 45, 37, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.admin-bottom-tabs button {
+  min-height: 54px;
+  justify-content: center;
+  padding: 0 8px;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.admin-bottom-tabs button.active,
+.admin-bottom-tabs button:hover {
+  color: var(--teal);
+  background: rgba(242, 140, 56, 0.13);
+  border-color: transparent;
+}
+
+.management-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 34;
+  display: grid;
+  justify-items: end;
+  align-items: start;
+  padding: 76px 18px 18px;
+  background: rgba(61, 45, 37, 0.36);
+}
+
+.management-menu[hidden] {
+  display: none;
+}
+
+.management-card {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: calc(100dvh - 96px);
+  padding: 22px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 28px 72px rgba(61, 45, 37, 0.22);
+}
+
+.management-card h2 {
+  margin-bottom: 10px;
+}
+
+.admin-name {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.management-grid button {
+  min-height: 44px;
+  color: var(--ink);
+  background: #ffffff;
+  border-color: var(--line);
+  font-weight: 800;
+}
+
+.management-grid button.danger {
+  color: var(--danger);
 }
 
 .eyebrow {
@@ -272,6 +389,101 @@ textarea {
   overflow-x: auto;
 }
 
+.admin-order-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-order-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(188px, auto);
+  gap: 16px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.admin-order-main {
+  min-width: 0;
+}
+
+.admin-order-title,
+.admin-order-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-order-title {
+  justify-content: space-between;
+}
+
+.admin-order-title strong {
+  min-width: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.admin-order-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-order-person {
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.admin-order-person span {
+  font-weight: 800;
+}
+
+.admin-order-person small {
+  color: var(--muted);
+}
+
+.admin-order-person .user-badge {
+  margin-top: 0;
+}
+
+.admin-order-pet {
+  width: 100%;
+}
+
+.admin-order-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+
+.admin-order-side strong {
+  color: var(--coral);
+  font-size: 18px;
+}
+
+.admin-order-side small,
+.admin-order-dates {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-order-dates {
+  display: grid;
+  gap: 3px;
+  margin-top: auto;
+}
+
+.admin-order-side .booking-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -353,6 +565,18 @@ td {
 .user-badge.member {
   color: var(--teal);
   background: #e8f7f2;
+}
+
+.user-badge.basic,
+.user-badge.middle,
+.user-badge.senior {
+  color: var(--teal);
+  background: #e8f7f2;
+}
+
+.user-badge.senior {
+  color: #2f5d73;
+  background: #e9f3f7;
 }
 
 .user-badge.normal {
@@ -465,10 +689,24 @@ td {
 
 .member-actions {
   flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.member-actions input {
+.member-balance-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.member-balance-form input[data-balance-value] {
   width: 120px;
+}
+
+.member-balance-form input[data-balance-remark] {
+  width: 160px;
 }
 
 .member-actions button,
@@ -476,6 +714,24 @@ td {
   color: var(--danger);
   background: #ffffff;
   border-color: var(--line);
+}
+
+.member-actions button.primary {
+  color: #ffffff;
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.balance-change {
+  font-weight: 900;
+}
+
+.balance-change.positive {
+  color: #26714c;
+}
+
+.balance-change.negative {
+  color: var(--danger);
 }
 
 .subpanel {
@@ -582,7 +838,7 @@ td {
 .toast {
   position: fixed;
   right: 24px;
-  bottom: 24px;
+  bottom: calc(96px + env(safe-area-inset-bottom));
   display: none;
   max-width: 320px;
   padding: 12px 14px;
@@ -666,22 +922,21 @@ td {
 }
 
 @media (max-width: 960px) {
-  .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    width: 88px;
-    padding: 10px 8px;
-    overflow-y: auto;
+  .topbar {
+    min-height: 58px;
+    padding: 8px 12px;
   }
 
-  .brand {
-    justify-content: center;
+  .topbar-title {
+    min-width: 0;
   }
 
-  .brand div,
-  .store-meta,
-  .admin-actions span {
-    display: none;
+  .topbar-title strong {
+    font-size: 20px;
+  }
+
+  .topbar-title small {
+    font-size: 12px;
   }
 
   .brand-mark {
@@ -689,33 +944,38 @@ td {
     height: 38px;
   }
 
-  main {
-    margin-left: 88px;
-    padding: 14px 10px 24px;
+  .management-trigger {
+    min-width: 84px;
+    padding: 0 10px;
   }
 
-  .topbar,
+  main {
+    padding: 10px 10px 28px;
+  }
+
+  .panel {
+    margin-top: 12px;
+    padding: 14px;
+  }
+
   .panel-head {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .admin-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: auto;
-    padding-top: 12px;
-    padding-bottom: 28px;
-  }
-
-  .admin-actions button {
-    padding: 0 4px;
-    line-height: 1.5;
-    font-size: 11px;
-  }
-
   .metrics {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .metric {
+    min-height: 82px;
+    padding: 12px;
+  }
+
+  .metric strong {
+    font-size: 24px;
   }
 
   .filters {
@@ -737,22 +997,100 @@ td {
   .member-admin-item,
   .member-admin-head,
   .member-actions,
+  .member-balance-form,
   .notice-admin-head,
   .notice-actions {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .admin-side-tabs {
-    grid-template-columns: 1fr;
-    gap: 6px;
-    margin-top: 14px;
+  .member-balance-form,
+  .member-balance-form input[data-balance-value],
+  .member-balance-form input[data-balance-remark],
+  .member-actions select,
+  .member-actions button {
+    width: 100%;
   }
 
-  .admin-side-tabs button {
-    min-height: 38px;
-    padding: 0 4px;
-    font-size: 12px;
-    text-align: center;
+  .admin-order-card {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-order-side {
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .admin-order-side .booking-actions {
+    justify-content: flex-start;
+  }
+
+  .admin-order-dates {
+    justify-items: end;
+    margin-top: 4px;
+    text-align: right;
+  }
+}
+
+@media (max-width: 760px) {
+  h2 {
+    font-size: 20px;
+  }
+
+  .management-menu {
+    justify-items: stretch;
+    padding: 68px 12px 12px;
+  }
+
+  .management-card {
+    width: 100%;
+    max-height: calc(100dvh - 86px);
+  }
+
+  .management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-shell {
+    overflow-x: visible;
+  }
+
+  table,
+  thead,
+  tbody,
+  tr,
+  th,
+  td {
+    display: block;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tr {
+    margin-bottom: 10px;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  td {
+    padding: 7px 0;
+    border-top: 0;
+  }
+
+  td + td {
+    border-top: 1px solid #f6e9dd;
+  }
+
+  .booking-actions {
+    flex-wrap: wrap;
+  }
+
+  .booking-actions button,
+  .table-shell button {
+    min-height: 36px;
   }
 }

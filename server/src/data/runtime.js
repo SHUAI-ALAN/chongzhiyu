@@ -67,6 +67,24 @@ function normalizeLevel(level) {
   return ['normal', 'basic', 'middle', 'senior'].includes(level) ? level : 'normal';
 }
 
+function roundMoney(value) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount)) return 0;
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+function runInTransaction(callback) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = callback();
+    db.exec('COMMIT');
+    return result;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
   const hash = crypto
     .createHash('sha256')
@@ -140,6 +158,24 @@ db.exec(`
     remark TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     updated_at TEXT,
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS member_balance_logs (
+    id TEXT PRIMARY KEY,
+    member_id TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    change_type TEXT NOT NULL,
+    delta_amount REAL NOT NULL DEFAULT 0,
+    balance_before REAL NOT NULL DEFAULT 0,
+    balance_after REAL NOT NULL DEFAULT 0,
+    source_type TEXT NOT NULL DEFAULT '',
+    source_id TEXT NOT NULL DEFAULT '',
+    operator_type TEXT NOT NULL DEFAULT '',
+    operator_id TEXT NOT NULL DEFAULT '',
+    operator_name TEXT NOT NULL DEFAULT '',
+    remark TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
     FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
   );
 
@@ -337,6 +373,7 @@ function seedDatabase() {
 
 seedDatabase();
 ensureDefaultAdmin();
+backfillMemberBalanceLogs();
 
 function toBooking(row) {
   return {
@@ -391,6 +428,25 @@ function toMemberOrder(row) {
     remark: row.remark,
     createdAt: row.created_at,
     updatedAt: row.updated_at || undefined
+  };
+}
+
+function toMemberBalanceLog(row) {
+  return {
+    id: row.id,
+    memberId: row.member_id,
+    phone: row.phone,
+    changeType: row.change_type,
+    deltaAmount: Number(row.delta_amount || 0),
+    balanceBefore: Number(row.balance_before || 0),
+    balanceAfter: Number(row.balance_after || 0),
+    sourceType: row.source_type || '',
+    sourceId: row.source_id || '',
+    operatorType: row.operator_type || '',
+    operatorId: row.operator_id || '',
+    operatorName: row.operator_name || '',
+    remark: row.remark || '',
+    createdAt: row.created_at
   };
 }
 
@@ -567,7 +623,7 @@ function addMember(payload) {
     name: String(payload.name || '').trim(),
     phone: String(payload.phone || '').trim(),
     level: normalizeLevel(payload.level || 'normal'),
-    balance: Number(payload.balance || 0),
+    balance: roundMoney(payload.balance),
     points: Number(payload.points || 0),
     passwordHash: payload.password ? hashPassword(String(payload.password)) : payload.passwordHash || null,
     pets: [],
@@ -575,25 +631,41 @@ function addMember(payload) {
     createdAt: now,
     updatedAt: now
   };
-  db.prepare(`
-    INSERT INTO members (
-      id, account_name, name, phone, level, balance, points,
-      password_hash, pets_json, remark, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    member.id,
-    member.accountName,
-    member.name,
-    member.phone,
-    member.level,
-    member.balance,
-    member.points,
-    member.passwordHash,
-    JSON.stringify(member.pets),
-    member.remark,
-    member.createdAt,
-    member.updatedAt
-  );
+  runInTransaction(() => {
+    db.prepare(`
+      INSERT INTO members (
+        id, account_name, name, phone, level, balance, points,
+        password_hash, pets_json, remark, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      member.id,
+      member.accountName,
+      member.name,
+      member.phone,
+      member.level,
+      member.balance,
+      member.points,
+      member.passwordHash,
+      JSON.stringify(member.pets),
+      member.remark,
+      member.createdAt,
+      member.updatedAt
+    );
+    if (member.balance !== 0) {
+      insertMemberBalanceLog({
+        memberId: member.id,
+        phone: member.phone,
+        changeType: 'opening_balance',
+        deltaAmount: member.balance,
+        balanceBefore: 0,
+        balanceAfter: member.balance,
+        operatorType: 'admin',
+        operatorName: '后台建档',
+        remark: '新增会员初始余额',
+        createdAt: now
+      });
+    }
+  });
   return member;
 }
 
@@ -631,9 +703,6 @@ function updateMember(id, payload) {
   if (Object.prototype.hasOwnProperty.call(payload, 'level')) {
     nextMember.level = normalizeLevel(payload.level);
   }
-  if (Object.prototype.hasOwnProperty.call(payload, 'balance')) {
-    nextMember.balance = Number(payload.balance || 0);
-  }
   if (Object.prototype.hasOwnProperty.call(payload, 'points')) {
     nextMember.points = Number(payload.points || 0);
   }
@@ -663,6 +732,168 @@ function updateMember(id, payload) {
     id
   );
   return getMember(id);
+}
+
+function insertMemberBalanceLog(payload) {
+  const now = payload.createdAt || new Date().toISOString();
+  const log = {
+    id: payload.id || createId('bal'),
+    memberId: String(payload.memberId || '').trim(),
+    phone: String(payload.phone || '').trim(),
+    changeType: String(payload.changeType || 'adjustment').trim(),
+    deltaAmount: roundMoney(payload.deltaAmount),
+    balanceBefore: roundMoney(payload.balanceBefore),
+    balanceAfter: roundMoney(payload.balanceAfter),
+    sourceType: String(payload.sourceType || '').trim(),
+    sourceId: String(payload.sourceId || '').trim(),
+    operatorType: String(payload.operatorType || '').trim(),
+    operatorId: String(payload.operatorId || '').trim(),
+    operatorName: String(payload.operatorName || '').trim(),
+    remark: String(payload.remark || '').trim(),
+    createdAt: now
+  };
+  db.prepare(`
+    INSERT INTO member_balance_logs (
+      id, member_id, phone, change_type, delta_amount, balance_before, balance_after,
+      source_type, source_id, operator_type, operator_id, operator_name, remark, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    log.id,
+    log.memberId,
+    log.phone,
+    log.changeType,
+    log.deltaAmount,
+    log.balanceBefore,
+    log.balanceAfter,
+    log.sourceType,
+    log.sourceId,
+    log.operatorType,
+    log.operatorId,
+    log.operatorName,
+    log.remark,
+    log.createdAt
+  );
+  return log;
+}
+
+function listMemberBalanceLogs(filters = {}) {
+  let sql = 'SELECT * FROM member_balance_logs';
+  const params = [];
+  const where = [];
+  if (filters.memberId && filters.memberId !== 'all') {
+    where.push('member_id = ?');
+    params.push(filters.memberId);
+  }
+  if (filters.phone) {
+    where.push('phone = ?');
+    params.push(filters.phone);
+  }
+  if (where.length) {
+    sql += ` WHERE ${where.join(' AND ')}`;
+  }
+  sql += ' ORDER BY created_at DESC';
+  const limit = Math.min(100, Math.max(1, Number(filters.limit || 50)));
+  sql += ' LIMIT ?';
+  params.push(limit);
+  return db.prepare(sql).all(...params).map(toMemberBalanceLog);
+}
+
+function applyMemberBalanceDelta(memberId, deltaAmount, options = {}) {
+  const member = getMember(memberId);
+  if (!member) {
+    return null;
+  }
+  const delta = roundMoney(deltaAmount);
+  const balanceBefore = roundMoney(member.balance);
+  const balanceAfter = roundMoney(balanceBefore + delta);
+  if (balanceAfter < 0) {
+    throw new Error('会员余额不能小于 0');
+  }
+  if (delta === 0) {
+    return {
+      member,
+      log: null,
+      noChange: true
+    };
+  }
+  const now = new Date().toISOString();
+  db.prepare('UPDATE members SET balance = ?, updated_at = ? WHERE id = ?')
+    .run(balanceAfter, now, member.id);
+  const log = insertMemberBalanceLog({
+    memberId: member.id,
+    phone: member.phone,
+    changeType: options.changeType || 'adjustment',
+    deltaAmount: delta,
+    balanceBefore,
+    balanceAfter,
+    sourceType: options.sourceType || '',
+    sourceId: options.sourceId || '',
+    operatorType: options.operatorType || '',
+    operatorId: options.operatorId || '',
+    operatorName: options.operatorName || '',
+    remark: options.remark || '',
+    createdAt: now
+  });
+  return {
+    member: getMember(member.id),
+    log,
+    noChange: false
+  };
+}
+
+function adjustMemberBalance(memberId, deltaAmount, options = {}) {
+  return runInTransaction(() => applyMemberBalanceDelta(memberId, deltaAmount, options));
+}
+
+function setMemberBalance(memberId, balance, options = {}) {
+  return runInTransaction(() => {
+    const member = getMember(memberId);
+    if (!member) {
+      return null;
+    }
+    const nextBalance = roundMoney(balance);
+    if (nextBalance < 0) {
+      throw new Error('会员余额不能小于 0');
+    }
+    const delta = roundMoney(nextBalance - roundMoney(member.balance));
+    return applyMemberBalanceDelta(memberId, delta, options);
+  });
+}
+
+function payBookingWithMemberBalance(payload) {
+  return runInTransaction(() => {
+    const balanceResult = applyMemberBalanceDelta(payload.memberId, -Number(payload.amount || 0), {
+      changeType: 'member_payment',
+      sourceType: 'booking',
+      sourceId: payload.bookingId,
+      operatorType: 'user',
+      operatorId: payload.memberId,
+      operatorName: payload.operatorName || '',
+      remark: payload.remark || ''
+    });
+    if (!balanceResult) {
+      return null;
+    }
+    const booking = updateBookingPayment(payload.bookingId, {
+      paymentStatus: 'paid',
+      paymentMethod: 'member_balance'
+    });
+    const order = addMemberOrder({
+      memberId: payload.memberId,
+      bookingId: payload.bookingId,
+      title: payload.title,
+      amount: Number(payload.amount || 0),
+      status: '已支付',
+      date: payload.date,
+      remark: payload.remark
+    });
+    return {
+      member: balanceResult.member,
+      booking,
+      order,
+      balanceLog: balanceResult.log
+    };
+  });
 }
 
 function addMemberPet(memberId, payload) {
@@ -928,6 +1159,28 @@ function deleteNotice(id) {
   return toNotice(row);
 }
 
+function backfillMemberBalanceLogs() {
+  if (countRows('member_balance_logs') > 0 || countRows('members') === 0) {
+    return;
+  }
+  const now = new Date().toISOString();
+  for (const member of listMembers()) {
+    const balance = roundMoney(member.balance);
+    insertMemberBalanceLog({
+      memberId: member.id,
+      phone: member.phone,
+      changeType: 'opening_balance',
+      deltaAmount: balance,
+      balanceBefore: 0,
+      balanceAfter: balance,
+      operatorType: 'system',
+      operatorName: '系统迁移',
+      remark: '启用余额流水时记录的当前余额',
+      createdAt: now
+    });
+  }
+}
+
 function toAdmin(row) {
   return {
     id: row.id,
@@ -998,7 +1251,7 @@ function deleteExpiredAdminSessions(now = Date.now()) {
 }
 
 function resetRuntimeState(nextState = defaultState) {
-  db.exec('DELETE FROM member_orders; DELETE FROM bookings; DELETE FROM members; DELETE FROM subscribers; DELETE FROM notices; DELETE FROM store_profile;');
+  db.exec('DELETE FROM member_balance_logs; DELETE FROM member_orders; DELETE FROM bookings; DELETE FROM members; DELETE FROM subscribers; DELETE FROM notices; DELETE FROM store_profile;');
   const insertStore = db.prepare('INSERT INTO store_profile (key, value) VALUES (?, ?)');
   for (const [key, value] of Object.entries(nextState.store || defaultState.store)) {
     insertStore.run(key, String(value || ''));
@@ -1024,6 +1277,19 @@ function resetRuntimeState(nextState = defaultState) {
       member.createdAt || new Date().toISOString(),
       member.updatedAt || null
     );
+    const balance = roundMoney(member.balance);
+    insertMemberBalanceLog({
+      memberId: member.id,
+      phone: member.phone || '',
+      changeType: 'opening_balance',
+      deltaAmount: balance,
+      balanceBefore: 0,
+      balanceAfter: balance,
+      operatorType: 'system',
+      operatorName: '系统重置',
+      remark: '重置数据时记录的初始余额',
+      createdAt: member.createdAt || new Date().toISOString()
+    });
   }
   for (const order of nextState.memberOrders || []) addMemberOrder(order);
   for (const subscriber of nextState.subscribers || []) addSubscriber(subscriber);
@@ -1046,6 +1312,10 @@ module.exports = {
   registerUser,
   verifyPassword,
   updateMember,
+  listMemberBalanceLogs,
+  adjustMemberBalance,
+  setMemberBalance,
+  payBookingWithMemberBalance,
   addMemberPet,
   updateMemberPet,
   deleteMemberPet,
