@@ -700,9 +700,21 @@ main {
   border-radius: 0;
   box-shadow: 0 -8px 24px rgba(38, 50, 56, 0.06);
   backdrop-filter: blur(12px);
+  overflow: visible;
   transform: translate3d(0, 0, 0);
   will-change: transform;
   -webkit-transform: translate3d(0, 0, 0);
+}
+
+.bottom-tabs::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: var(--bottom-tabs-lift);
+  pointer-events: none;
+  content: "";
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .bottom-tabs button {
