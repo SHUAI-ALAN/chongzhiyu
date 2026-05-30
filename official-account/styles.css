@@ -417,8 +417,9 @@ main {
   --coral: #ff7f50;
   --cream: #fff6eb;
   --line: #f1dfcf;
+  --bottom-tabs-lift: 8px;
   min-height: 100svh;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
   background: #fffaf5;
   overflow-x: hidden;
 }
@@ -685,7 +686,7 @@ main {
   position: fixed;
   top: auto;
   right: 0;
-  bottom: 0;
+  bottom: var(--bottom-tabs-lift);
   left: 0;
   z-index: 18;
   display: grid;
