@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
@@ -10,9 +11,17 @@ const {
   storeConfig
 } = require('./store');
 
-const dataFile = process.env.PET_DB_FILE
-  ? path.resolve(process.env.PET_DB_FILE)
-  : path.resolve(__dirname, '../../runtime/pet.sqlite');
+function resolveDataFile() {
+  if (process.env.PET_DB_FILE) {
+    return path.resolve(process.env.PET_DB_FILE);
+  }
+  if (process.env.VERCEL) {
+    return path.join(os.tmpdir(), 'chongzhiyu-pet.sqlite');
+  }
+  return path.resolve(__dirname, '../../runtime/pet.sqlite');
+}
+
+const dataFile = resolveDataFile();
 
 const defaultState = {
   store: {

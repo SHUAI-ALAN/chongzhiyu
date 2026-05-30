@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Debug workspace for the pet-home mini program, official account page, and backend.",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "nodemon server/src/server.js",
     "start": "node server/src/server.js",
