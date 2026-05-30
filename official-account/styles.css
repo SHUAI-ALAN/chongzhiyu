@@ -417,7 +417,10 @@ main {
   --coral: #ff7f50;
   --cream: #fff6eb;
   --line: #f1dfcf;
+  min-height: 100svh;
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
   background: #fffaf5;
+  overflow-x: hidden;
 }
 
 .account-header {
@@ -680,6 +683,7 @@ main {
 
 .bottom-tabs {
   position: fixed;
+  top: auto;
   right: 0;
   bottom: 0;
   left: 0;
@@ -695,6 +699,9 @@ main {
   border-radius: 0;
   box-shadow: 0 -8px 24px rgba(38, 50, 56, 0.06);
   backdrop-filter: blur(12px);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  -webkit-transform: translate3d(0, 0, 0);
 }
 
 .bottom-tabs button {
@@ -706,6 +713,18 @@ main {
   border-radius: 12px;
   font-size: 15px;
   font-weight: 800;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+}
+
+.bottom-tabs button:focus {
+  outline: none;
+}
+
+.bottom-tabs button:focus-visible {
+  outline: 2px solid rgba(242, 140, 56, 0.42);
+  outline-offset: -2px;
 }
 
 .bottom-tabs button.active {

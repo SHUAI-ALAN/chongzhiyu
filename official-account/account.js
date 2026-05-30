@@ -45,6 +45,7 @@ const accountTimePickerWheel = document.querySelector('#accountTimePickerWheel')
 const accountTimePickerCancel = document.querySelector('#accountTimePickerCancel');
 const accountTimePickerDone = document.querySelector('#accountTimePickerDone');
 const accountTabs = document.querySelector('#accountTabs');
+const accountMain = document.querySelector('.account-main');
 const accountHeroEn = document.querySelector('.account-hero .eyebrow');
 const accountHeroTitle = document.querySelector('.account-hero h1');
 const accountHeroIntro = document.querySelector('.account-hero p:last-child');
@@ -107,6 +108,29 @@ const viewTitles = {
   profile: { title: '个人中心', en: 'Profile' },
   history: { title: '账单明细', en: 'Billing' }
 };
+
+function stabilizeAccountTabs(button) {
+  if (button && typeof button.blur === 'function') {
+    button.blur();
+  }
+  window.requestAnimationFrame(() => {
+    if (!accountTabs || accountTabs.hidden) return;
+    accountTabs.style.transform = 'translate3d(0, 0, 0)';
+    const targetTop = accountMain ? Math.max(0, accountMain.offsetTop - 8) : 0;
+    if (window.scrollY > targetTop) {
+      window.scrollTo({ top: targetTop, behavior: 'auto' });
+    }
+  });
+}
+
+function handleAccountTabSelect(event) {
+  const button = event.target.closest('button[data-tab-target]');
+  if (!button) return false;
+  event.preventDefault();
+  setActiveView(button.dataset.tabTarget);
+  stabilizeAccountTabs(button);
+  return true;
+}
 
 function escapeHtml(value) {
   return String(value || '')
@@ -798,10 +822,10 @@ logoutButton.addEventListener('click', () => {
   setCurrentUser(null);
 });
 
+accountTabs.addEventListener('touchend', handleAccountTabSelect, { passive: false });
+
 accountTabs.addEventListener('click', (event) => {
-  const button = event.target.closest('button[data-tab-target]');
-  if (!button) return;
-  setActiveView(button.dataset.tabTarget);
+  handleAccountTabSelect(event);
 });
 
 accountBookingCategory.addEventListener('change', loadAppointmentSlots);

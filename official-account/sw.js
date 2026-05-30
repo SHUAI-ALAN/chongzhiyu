@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chongzhiyu-service-center-v3';
+const CACHE_NAME = 'chongzhiyu-service-center-v4';
 const APP_SHELL = [
   '/official/',
   '/official/account.html',
