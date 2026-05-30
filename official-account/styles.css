@@ -12,6 +12,11 @@
   box-sizing: border-box;
 }
 
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -21,11 +26,20 @@ body {
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--white);
+  touch-action: manipulation;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }
 
 .hero {

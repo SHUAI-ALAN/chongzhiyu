@@ -14,6 +14,11 @@
   box-sizing: border-box;
 }
 
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   min-height: 100vh;
   margin: 0;
@@ -21,6 +26,15 @@ body {
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--paper);
+  touch-action: manipulation;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }
 
 .admin-view[hidden] {
