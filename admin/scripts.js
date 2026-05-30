@@ -31,6 +31,8 @@ const storeBookingTipTitleInput = document.querySelector('#storeBookingTipTitleI
 const storeBookingTipTextInput = document.querySelector('#storeBookingTipTextInput');
 const noticeForm = document.querySelector('#noticeForm');
 const memberForm = document.querySelector('#memberForm');
+const showMemberFormButton = document.querySelector('#showMemberFormButton');
+const cancelMemberFormButton = document.querySelector('#cancelMemberFormButton');
 const memberAccountName = document.querySelector('#memberAccountName');
 const memberName = document.querySelector('#memberName');
 const memberPhone = document.querySelector('#memberPhone');
@@ -387,50 +389,43 @@ function renderUsers(users) {
     return;
   }
 
-  userListNode.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>用户类型</th>
-          <th>姓名 / 账户</th>
-          <th>手机号</th>
-          <th>会员信息</th>
-          <th>来源</th>
-          <th>记录</th>
-          <th>最近活动</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${users.map((user) => `
-          <tr>
-            <td><span class="user-badge ${escapeHtml(user.level || user.userType)}">${escapeHtml(user.userTypeLabel)}</span></td>
-            <td>
-              <div class="cell-main">${escapeHtml(user.name || '-')}</div>
-              <div class="cell-sub">${escapeHtml(user.accountName || '无账户名')}</div>
-            </td>
-            <td>${escapeHtml(user.phone)}</td>
-            <td>
-              <div class="cell-main">${user.levelLabel ? escapeHtml(user.levelLabel) : '-'}</div>
-              <div class="cell-sub">余额 ¥${Number(user.balance || 0).toFixed(2)}</div>
-            </td>
-            <td>${escapeHtml(user.sources || '-')}</td>
-            <td>
-              <div class="cell-main">预约 ${Number(user.bookingCount || 0)}</div>
-              <div class="cell-sub">订单 ${Number(user.orderCount || 0)}</div>
-            </td>
-            <td>${escapeHtml(user.lastSeenAt || '-')}</td>
-            <td>
-              <button
-                data-user-phone="${escapeHtml(user.phone)}"
-                data-user-name="${escapeHtml(user.name || user.accountName || user.phone)}"
-              >查看订单</button>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
+  userListNode.innerHTML = users.map((user) => {
+    const displayName = user.name || user.accountName || user.phone;
+    return `
+      <article class="user-summary-card">
+        <div class="user-summary-main">
+          <div class="user-summary-head">
+            <strong>${escapeHtml(displayName || '-')}</strong>
+            <span class="user-badge ${escapeHtml(user.level || user.userType)}">${escapeHtml(user.userTypeLabel)}</span>
+          </div>
+          <p>${escapeHtml(user.phone)} · 余额 ¥${Number(user.balance || 0).toFixed(2)}</p>
+          <div class="user-summary-metrics">
+            <span>预约 ${Number(user.bookingCount || 0)}</span>
+            <span>订单 ${Number(user.orderCount || 0)}</span>
+          </div>
+        </div>
+        <div class="user-summary-actions">
+          <button
+            data-user-phone="${escapeHtml(user.phone)}"
+            data-user-name="${escapeHtml(displayName || user.phone)}"
+          >消费记录</button>
+        </div>
+        <details class="admin-order-detail user-detail">
+          <summary>详情</summary>
+          <div class="detail-grid">
+            <span>账户</span>
+            <strong>${escapeHtml(user.accountName || '无账户名')}</strong>
+            <span>等级</span>
+            <strong>${escapeHtml(user.levelLabel || user.userTypeLabel || '-')}</strong>
+            <span>来源</span>
+            <p>${escapeHtml(user.sources || '-')}</p>
+            <span>最近活动</span>
+            <p>${escapeHtml(user.lastSeenAt || '-')}</p>
+          </div>
+        </details>
+      </article>
+    `;
+  }).join('');
 }
 
 function renderUserOrders(data) {
@@ -531,29 +526,39 @@ function renderMembers(members, filterValue = 'all') {
 
   memberListNode.innerHTML = members.map((member) => `
     <article class="member-admin-item">
-      <div>
+      <div class="member-admin-summary">
         <div class="member-admin-head">
           <strong>${escapeHtml(member.name)}</strong>
-          <span>${escapeHtml(member.accountName)}</span>
           <span class="member-level-badge">${escapeHtml(member.levelLabel)}</span>
         </div>
-        <p>${escapeHtml(member.phone)} · 余额 ¥${Number(member.balance || 0).toFixed(2)} · 积分 ${Number(member.points || 0)}</p>
-        <small>${escapeHtml(member.remark || '无备注')}</small>
+        <p>${escapeHtml(member.phone)} · 余额 ¥${Number(member.balance || 0).toFixed(2)}</p>
       </div>
-      <div class="member-actions">
-        <select data-member-id="${escapeHtml(member.id)}" data-field="level">
-          <option value="normal" ${member.level === 'normal' ? 'selected' : ''}>普通</option>
-          <option value="basic" ${member.level === 'basic' ? 'selected' : ''}>初级</option>
-          <option value="middle" ${member.level === 'middle' ? 'selected' : ''}>中级</option>
-          <option value="senior" ${member.level === 'senior' ? 'selected' : ''}>高级</option>
-        </select>
-        <div class="member-balance-form">
-          <input data-balance-value type="number" min="0" step="0.01" value="${Number(member.balance || 0)}" aria-label="调整后余额">
-          <input data-balance-remark type="text" maxlength="60" placeholder="调整原因">
-          <button data-member-id="${escapeHtml(member.id)}" data-action="save-balance" class="primary" type="button">保存余额</button>
+      <details class="admin-order-detail member-detail">
+        <summary>维护</summary>
+        <div class="detail-grid member-detail-grid">
+          <span>账户</span>
+          <strong>${escapeHtml(member.accountName || '无账户名')}</strong>
+          <span>积分</span>
+          <strong>${Number(member.points || 0)}</strong>
+          <span>备注</span>
+          <p>${escapeHtml(member.remark || '无备注')}</p>
+          <span>等级</span>
+          <select data-member-id="${escapeHtml(member.id)}" data-field="level">
+            <option value="normal" ${member.level === 'normal' ? 'selected' : ''}>普通</option>
+            <option value="basic" ${member.level === 'basic' ? 'selected' : ''}>初级</option>
+            <option value="middle" ${member.level === 'middle' ? 'selected' : ''}>中级</option>
+            <option value="senior" ${member.level === 'senior' ? 'selected' : ''}>高级</option>
+          </select>
+          <span>余额</span>
+          <div class="member-balance-form">
+            <input data-balance-value type="number" min="0" step="0.01" value="${Number(member.balance || 0)}" aria-label="调整后余额">
+            <input data-balance-remark type="text" maxlength="60" placeholder="调整原因">
+            <button data-member-id="${escapeHtml(member.id)}" data-action="save-balance" class="primary" type="button">保存余额</button>
+          </div>
+          <span>操作</span>
+          <button data-member-id="${escapeHtml(member.id)}" data-action="delete-member" class="danger">删除用户</button>
         </div>
-        <button data-member-id="${escapeHtml(member.id)}" data-action="delete-member" class="danger">删除</button>
-      </div>
+      </details>
     </article>
   `).join('');
 }
@@ -771,6 +776,25 @@ storeForm.addEventListener('submit', async (event) => {
   }
 });
 
+function setMemberFormVisible(visible) {
+  memberForm.hidden = !visible;
+  showMemberFormButton.textContent = visible ? '收起新增' : '新增用户';
+  if (visible) {
+    memberAccountName.focus();
+  }
+}
+
+showMemberFormButton.addEventListener('click', () => {
+  setMemberFormVisible(memberForm.hidden);
+});
+
+cancelMemberFormButton.addEventListener('click', () => {
+  memberForm.reset();
+  memberBalance.value = 0;
+  memberPoints.value = 0;
+  setMemberFormVisible(false);
+});
+
 memberForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = memberForm.querySelector('button[type="submit"]');
@@ -791,10 +815,11 @@ memberForm.addEventListener('submit', async (event) => {
     memberForm.reset();
     memberBalance.value = 0;
     memberPoints.value = 0;
-    showToast('会员已新增');
+    setMemberFormVisible(false);
+    showToast('用户已新增');
     await loadDashboard();
   } catch (error) {
-    showToast(error.message || '新增会员失败');
+    showToast(error.message || '新增用户失败');
   } finally {
     button.disabled = false;
   }
