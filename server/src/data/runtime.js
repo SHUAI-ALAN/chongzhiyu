@@ -1259,8 +1259,51 @@ function deleteExpiredAdminSessions(now = Date.now()) {
   db.prepare('DELETE FROM admin_sessions WHERE expires_at < ?').run(Number(now));
 }
 
+function dumpRuntimeState() {
+  return {
+    store: getStoreProfile(),
+    bookings: listBookings(),
+    members: listMembers(),
+    balanceLogs: db.prepare('SELECT * FROM member_balance_logs ORDER BY created_at ASC')
+      .all()
+      .map(toMemberBalanceLog),
+    memberOrders: listMemberOrders(),
+    subscribers: listSubscribers(),
+    notices: listNotices(),
+    admins: db.prepare('SELECT * FROM admins ORDER BY created_at ASC').all().map(toAdmin)
+  };
+}
+
 function resetRuntimeState(nextState = defaultState) {
-  db.exec('DELETE FROM member_balance_logs; DELETE FROM member_orders; DELETE FROM bookings; DELETE FROM members; DELETE FROM subscribers; DELETE FROM notices; DELETE FROM store_profile;');
+  const restoringBalanceLogs = Array.isArray(nextState.balanceLogs);
+  const restoringAdmins = Array.isArray(nextState.admins);
+  db.exec(`
+    DELETE FROM admin_sessions;
+    DELETE FROM member_balance_logs;
+    DELETE FROM member_orders;
+    DELETE FROM bookings;
+    DELETE FROM members;
+    DELETE FROM subscribers;
+    DELETE FROM notices;
+    DELETE FROM store_profile;
+    ${restoringAdmins ? 'DELETE FROM admins;' : ''}
+  `);
+  if (restoringAdmins) {
+    const insertAdmin = db.prepare(`
+      INSERT INTO admins (id, username, password_hash, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    for (const admin of nextState.admins) {
+      insertAdmin.run(
+        admin.id || createId('admin'),
+        admin.username || 'admin',
+        admin.passwordHash || hashPassword('123456'),
+        admin.createdAt || new Date().toISOString(),
+        admin.updatedAt || admin.createdAt || new Date().toISOString()
+      );
+    }
+    ensureDefaultAdmin();
+  }
   const insertStore = db.prepare('INSERT INTO store_profile (key, value) VALUES (?, ?)');
   for (const [key, value] of Object.entries(nextState.store || defaultState.store)) {
     insertStore.run(key, String(value || ''));
@@ -1286,19 +1329,26 @@ function resetRuntimeState(nextState = defaultState) {
       member.createdAt || new Date().toISOString(),
       member.updatedAt || null
     );
-    const balance = roundMoney(member.balance);
-    insertMemberBalanceLog({
-      memberId: member.id,
-      phone: member.phone || '',
-      changeType: 'opening_balance',
-      deltaAmount: balance,
-      balanceBefore: 0,
-      balanceAfter: balance,
-      operatorType: 'system',
-      operatorName: '系统重置',
-      remark: '重置数据时记录的初始余额',
-      createdAt: member.createdAt || new Date().toISOString()
-    });
+    if (!restoringBalanceLogs) {
+      const balance = roundMoney(member.balance);
+      insertMemberBalanceLog({
+        memberId: member.id,
+        phone: member.phone || '',
+        changeType: 'opening_balance',
+        deltaAmount: balance,
+        balanceBefore: 0,
+        balanceAfter: balance,
+        operatorType: 'system',
+        operatorName: '系统重置',
+        remark: '重置数据时记录的初始余额',
+        createdAt: member.createdAt || new Date().toISOString()
+      });
+    }
+  }
+  if (restoringBalanceLogs) {
+    for (const log of nextState.balanceLogs) {
+      insertMemberBalanceLog(log);
+    }
   }
   for (const order of nextState.memberOrders || []) addMemberOrder(order);
   for (const subscriber of nextState.subscribers || []) addSubscriber(subscriber);
@@ -1348,5 +1398,6 @@ module.exports = {
   updateAdminSession,
   deleteAdminSession,
   deleteExpiredAdminSessions,
+  dumpRuntimeState,
   resetRuntimeState
 };
