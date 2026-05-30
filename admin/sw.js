@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chongzhiyu-admin-v4';
+const CACHE_NAME = 'chongzhiyu-admin-v5';
 const APP_SHELL = [
   '/admin/',
   '/admin/index.html',
