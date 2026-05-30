@@ -383,6 +383,46 @@ textarea {
   gap: 10px;
 }
 
+.user-filter-bar {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-select-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 1px;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segment-filter {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.segment-filter button {
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.segment-filter button.active {
+  color: #ffffff;
+  background: var(--teal);
+}
+
 .pagination {
   display: flex;
   align-items: center;
@@ -412,7 +452,7 @@ textarea {
 .admin-order-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(188px, auto);
-  gap: 16px;
+  gap: 12px 16px;
   padding: 16px;
   background: #ffffff;
   border: 1px solid var(--line);
@@ -438,6 +478,15 @@ textarea {
   min-width: 0;
   font-size: 17px;
   overflow-wrap: anywhere;
+}
+
+.admin-order-brief {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .admin-order-note {
@@ -497,6 +546,118 @@ textarea {
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.admin-order-detail {
+  grid-column: 1 / -1;
+  padding-top: 2px;
+  color: var(--muted);
+}
+
+.admin-order-detail summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #fff7ed;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  list-style: none;
+}
+
+.admin-order-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-order-detail summary::after {
+  margin-left: 6px;
+  content: "展开";
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.admin-order-detail[open] summary::after {
+  content: "收起";
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin-top: 10px;
+  padding: 12px;
+  background: #fffaf5;
+  border: 1px solid #f4e5d7;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.detail-grid span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.detail-grid strong,
+.detail-grid p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.compact-order-list {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-order-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.compact-order-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.compact-order-summary strong,
+.compact-order-summary span,
+.compact-order-summary em {
+  display: block;
+}
+
+.compact-order-summary strong {
+  overflow-wrap: anywhere;
+}
+
+.compact-order-summary span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.compact-order-summary em {
+  color: var(--coral);
+  font-style: normal;
+  font-weight: 900;
+  text-align: right;
+}
+
+.compact-order-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-order-detail.compact {
+  padding-top: 0;
 }
 
 table {
@@ -1002,6 +1163,20 @@ td {
     flex-direction: column;
   }
 
+  .user-filter-bar {
+    align-items: stretch;
+  }
+
+  .segment-filter {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .segment-filter button {
+    flex: 1 0 auto;
+    white-space: nowrap;
+  }
+
   .notice-form,
   .member-form,
   .member-order-form {
@@ -1040,6 +1215,11 @@ td {
     text-align: left;
   }
 
+  .admin-order-side strong,
+  .compact-order-summary em {
+    text-align: left;
+  }
+
   .admin-order-side .booking-actions {
     justify-content: flex-start;
   }
@@ -1048,6 +1228,14 @@ td {
     justify-items: end;
     margin-top: 4px;
     text-align: right;
+  }
+
+  .compact-order-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-order-actions {
+    justify-content: flex-start;
   }
 }
 

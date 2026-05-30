@@ -52,6 +52,7 @@ const noticeEnabled = document.querySelector('#noticeEnabled');
 const statusFilter = document.querySelector('#statusFilter');
 const dateFilter = document.querySelector('#dateFilter');
 const userTypeFilter = document.querySelector('#userTypeFilter');
+const userTypeSegments = document.querySelector('#userTypeSegments');
 const userKeywordFilter = document.querySelector('#userKeywordFilter');
 const refreshButton = document.querySelector('#refreshButton');
 const storeMeta = document.querySelector('#storeMeta');
@@ -273,6 +274,16 @@ function userFilterLabel(filterValue) {
   }[filterValue] || '用户';
 }
 
+function syncUserTypeSegments() {
+  if (!userTypeSegments) return;
+  const value = userTypeFilter.value || 'all';
+  userTypeSegments.querySelectorAll('button[data-user-filter]').forEach((button) => {
+    const active = button.dataset.userFilter === value;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
 function filterMembersByUserType(members, filterValue) {
   if (!filterValue || filterValue === 'all') {
     return members;
@@ -311,11 +322,15 @@ function renderBookings(bookings) {
         const petLine = visiblePetName
           ? [visiblePetName, booking.petType].filter(Boolean).join(' · ')
           : '';
+        const customerLine = [booking.customerName, booking.phone].filter(Boolean).join(' · ');
         const dateLines = [
           `预约 ${booking.date} ${booking.time}`,
           `提交 ${formatLocalDateTime(booking.createdAt)}`,
+          booking.paidAt ? `收款 ${formatLocalDateTime(booking.paidAt)}` : '',
           booking.completedAt ? `完成 ${formatLocalDateTime(booking.completedAt)}` : ''
         ].filter(Boolean);
+        const nextActions = statusActions.filter((action) => canChangeBookingStatus(booking.status, action.status));
+        const showPayAction = (booking.paymentStatus || 'unpaid') !== 'paid';
         return `
           <article class="admin-order-card">
             <div class="admin-order-main">
@@ -323,30 +338,23 @@ function renderBookings(bookings) {
                 <strong>${escapeHtml(booking.serviceName || '订单项目')}</strong>
                 <span class="status ${escapeHtml(booking.status)}">${escapeHtml(booking.statusLabel)}</span>
               </div>
-              ${visibleRemark ? `<p class="admin-order-note">${escapeHtml(visibleRemark)}</p>` : ''}
-              <div class="admin-order-person">
-                <span>${escapeHtml(booking.customerName)}</span>
-                <small>${escapeHtml(booking.phone)}</small>
-                <em class="user-badge ${escapeHtml(booking.userType)}">
-                  ${escapeHtml(booking.userTypeLabel)}${booking.memberLevelLabel ? ` · ${escapeHtml(booking.memberLevelLabel)}` : ''}
-                </em>
-                ${petLine ? `<small class="admin-order-pet">宠物：${escapeHtml(petLine)}</small>` : ''}
+              <div class="admin-order-brief">
+                <span>${escapeHtml(customerLine || '-')}</span>
+                <span>${escapeHtml(booking.date)} ${escapeHtml(booking.time)}</span>
               </div>
             </div>
             <div class="admin-order-side">
               <strong>¥${Number(booking.amount || 0).toFixed(2)}</strong>
               <small>${escapeHtml(booking.paymentStatusLabel || booking.paymentStatus || '待支付')}</small>
-              ${booking.paidAt ? `<small>${escapeHtml(formatLocalDateTime(booking.paidAt))}</small>` : ''}
               <div class="booking-actions">
-                ${statusActions.map((action) => `
+                ${nextActions.map((action) => `
                   <button
                     class="${action.primary ? 'primary' : ''}"
                     data-booking-id="${escapeHtml(booking.id)}"
                     data-status="${action.status}"
-                    ${canChangeBookingStatus(booking.status, action.status) ? '' : 'disabled'}
                   >${action.label}</button>
                 `).join('')}
-                ${(booking.paymentStatus || 'unpaid') !== 'paid' ? `
+                ${showPayAction ? `
                   <button
                     class="primary"
                     data-booking-id="${escapeHtml(booking.id)}"
@@ -354,10 +362,18 @@ function renderBookings(bookings) {
                   >确认收款</button>
                 ` : ''}
               </div>
-              <div class="admin-order-dates">
-                ${dateLines.map((line) => `<span>${escapeHtml(line)}</span>`).join('')}
-              </div>
             </div>
+            <details class="admin-order-detail">
+              <summary>详情</summary>
+              <div class="detail-grid">
+                <span>用户</span>
+                <strong>${escapeHtml(booking.userTypeLabel)}${booking.memberLevelLabel ? ` · ${escapeHtml(booking.memberLevelLabel)}` : ''}</strong>
+                ${petLine ? `<span>宠物</span><strong>${escapeHtml(petLine)}</strong>` : ''}
+                ${visibleRemark ? `<span>备注</span><p>${escapeHtml(visibleRemark)}</p>` : ''}
+                <span>时间</span>
+                <p>${dateLines.map((line) => escapeHtml(line)).join('<br>')}</p>
+              </div>
+            </details>
           </article>
         `;
       }).join('')}
@@ -422,28 +438,31 @@ function renderUserOrders(data) {
     userOrderListNode.innerHTML = '<div class="empty">暂无消费记录</div>';
   } else {
     userOrderListNode.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>时间</th>
-            <th>内容</th>
-            <th>金额</th>
-            <th>状态</th>
-            <th>备注</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${data.orders.map((order) => `
-            <tr>
-              <td>${escapeHtml(order.date || order.createdAt || '-')}</td>
-              <td>${escapeHtml(order.title)}</td>
-              <td>¥${Number(order.amount || 0).toFixed(2)}</td>
-              <td>${escapeHtml(order.status)}</td>
-              <td>${escapeHtml(order.remark || '-')}</td>
-            </tr>
+      <div class="compact-order-list">
+        ${data.orders.map((order) => `
+          <article class="compact-order-card">
+            <div class="compact-order-summary">
+              <div>
+                <strong>${escapeHtml(order.title)}</strong>
+                <span>${escapeHtml(order.date || order.createdAt || '-')}</span>
+              </div>
+              <div>
+                <em>¥${Number(order.amount || 0).toFixed(2)}</em>
+                <span>${escapeHtml(order.status || '-')}</span>
+              </div>
+            </div>
+            <details class="admin-order-detail compact">
+              <summary>详情</summary>
+              <div class="detail-grid">
+                <span>时间</span>
+                <strong>${escapeHtml(order.createdAt || order.date || '-')}</strong>
+                <span>备注</span>
+                <p>${escapeHtml(order.remark || '无备注')}</p>
+              </div>
+            </details>
+          </article>
           `).join('')}
-        </tbody>
-      </table>
+      </div>
     `;
   }
 
@@ -593,36 +612,34 @@ function renderMemberOrders(data) {
     memberOrderListNode.innerHTML = '<div class="empty">暂无会员订单</div>';
   } else {
     memberOrderListNode.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>会员</th>
-            <th>订单内容</th>
-            <th>金额</th>
-            <th>状态</th>
-            <th>日期</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${orders.map((order) => `
-            <tr>
-              <td>
-                <div class="cell-main">${escapeHtml(order.memberName || order.accountName)}</div>
-                <div class="cell-sub">${escapeHtml(order.phone)}</div>
-              </td>
-              <td>
-                <div class="cell-main">${escapeHtml(order.title)}</div>
-                <div class="cell-sub">${escapeHtml(order.remark || '无备注')}</div>
-              </td>
-              <td>¥${Number(order.amount || 0).toFixed(2)}</td>
-              <td>${escapeHtml(order.status)}</td>
-              <td>${escapeHtml(order.date)}</td>
-              <td><button class="danger" data-order-id="${escapeHtml(order.id)}">删除</button></td>
-            </tr>
+      <div class="compact-order-list">
+        ${orders.map((order) => `
+          <article class="compact-order-card">
+            <div class="compact-order-summary">
+              <div>
+                <strong>${escapeHtml(order.title)}</strong>
+                <span>${escapeHtml(order.memberName || order.accountName)} · ${escapeHtml(order.phone)}</span>
+              </div>
+              <div>
+                <em>¥${Number(order.amount || 0).toFixed(2)}</em>
+                <span>${escapeHtml(order.status)} · ${escapeHtml(order.date)}</span>
+              </div>
+            </div>
+            <div class="compact-order-actions">
+              <button class="danger" data-order-id="${escapeHtml(order.id)}">删除</button>
+            </div>
+            <details class="admin-order-detail compact">
+              <summary>详情</summary>
+              <div class="detail-grid">
+                <span>会员</span>
+                <strong>${escapeHtml(order.memberName || order.accountName)} · ${escapeHtml(order.phone)}</strong>
+                <span>备注</span>
+                <p>${escapeHtml(order.remark || '无备注')}</p>
+              </div>
+            </details>
+          </article>
           `).join('')}
-        </tbody>
-      </table>
+      </div>
     `;
   }
 
@@ -679,6 +696,7 @@ async function loadDashboard() {
     ]);
     renderMetrics(summaryData.summary);
     renderStoreForm(summaryData.store);
+    syncUserTypeSegments();
     renderBookings(bookingData.bookings);
     bookingState.page = bookingData.page || 1;
     bookingState.totalPages = bookingData.totalPages || 1;
@@ -974,7 +992,19 @@ dateFilter.addEventListener('change', () => {
   bookingState.page = 1;
   loadDashboard();
 });
-userTypeFilter.addEventListener('change', loadDashboard);
+userTypeFilter.addEventListener('change', () => {
+  syncUserTypeSegments();
+  loadDashboard();
+});
+if (userTypeSegments) {
+  userTypeSegments.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-user-filter]');
+    if (!button) return;
+    userTypeFilter.value = button.dataset.userFilter;
+    syncUserTypeSegments();
+    loadDashboard();
+  });
+}
 userKeywordFilter.addEventListener('input', () => {
   window.clearTimeout(userKeywordFilter.timer);
   userKeywordFilter.timer = window.setTimeout(loadDashboard, 300);

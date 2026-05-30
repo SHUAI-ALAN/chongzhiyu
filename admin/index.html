@@ -119,14 +119,21 @@
             <p class="eyebrow">Users</p>
             <h2>用户查询</h2>
           </div>
-          <div class="filters">
-            <select id="userTypeFilter">
+          <div class="filters user-filter-bar">
+            <select class="filter-select-hidden" id="userTypeFilter" aria-label="用户分类">
               <option value="all">全部用户</option>
               <option value="normal">普通用户</option>
               <option value="basic">初级会员</option>
               <option value="middle">中级会员</option>
               <option value="senior">高级会员</option>
             </select>
+            <div class="segment-filter" id="userTypeSegments" aria-label="用户分类">
+              <button class="active" type="button" data-user-filter="all">全部</button>
+              <button type="button" data-user-filter="normal">普通</button>
+              <button type="button" data-user-filter="basic">初级</button>
+              <button type="button" data-user-filter="middle">中级</button>
+              <button type="button" data-user-filter="senior">高级</button>
+            </div>
             <input id="userKeywordFilter" type="search" placeholder="姓名 / 账户名 / 手机号">
           </div>
         </div>
