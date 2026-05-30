@@ -94,7 +94,62 @@ function publicAdmin(admin) {
   };
 }
 
+function isStatelessAdminSessionEnabled() {
+  return Boolean(process.env.VERCEL || process.env.ADMIN_SESSION_SECRET);
+}
+
+function base64UrlEncode(value) {
+  return Buffer.from(value).toString('base64url');
+}
+
+function base64UrlDecode(value) {
+  return Buffer.from(value, 'base64url').toString('utf8');
+}
+
+function adminSessionSecret() {
+  return process.env.ADMIN_SESSION_SECRET || 'chongzhiyu-vercel-admin-session-v1';
+}
+
+function signAdminPayload(payload) {
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac('sha256', adminSessionSecret())
+    .update(encodedPayload)
+    .digest('base64url');
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyAdminPayload(token) {
+  const [encodedPayload, signature] = String(token || '').split('.');
+  if (!encodedPayload || !signature) {
+    return null;
+  }
+  const expected = crypto
+    .createHmac('sha256', adminSessionSecret())
+    .update(encodedPayload)
+    .digest('base64url');
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (
+    signatureBuffer.length !== expectedBuffer.length
+    || !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)
+  ) {
+    return null;
+  }
+  try {
+    return JSON.parse(base64UrlDecode(encodedPayload));
+  } catch (error) {
+    return null;
+  }
+}
+
 function createAdminSession(admin) {
+  if (isStatelessAdminSessionEnabled()) {
+    return signAdminPayload({
+      username: admin.username,
+      expiresAt: Date.now() + adminSessionTtl
+    });
+  }
   const token = crypto.randomBytes(32).toString('hex');
   addAdminSession(token, admin.id, Date.now() + adminSessionTtl);
   return token;
@@ -110,6 +165,14 @@ function getSessionAdmin(req) {
   const token = getBearerToken(req);
   if (!token) {
     return null;
+  }
+  if (isStatelessAdminSessionEnabled()) {
+    const payload = verifyAdminPayload(token);
+    if (!payload || Number(payload.expiresAt || 0) < Date.now()) {
+      return null;
+    }
+    const admin = getAdminByUsername(payload.username);
+    return admin ? { admin, token } : null;
   }
   deleteExpiredAdminSessions();
   const session = getAdminSession(token);
@@ -1032,7 +1095,7 @@ async function route(req, res, url) {
 
   if (req.method === 'POST' && url.pathname === '/api/admin/logout') {
     const token = getBearerToken(req);
-    if (token) {
+    if (token && !isStatelessAdminSessionEnabled()) {
       deleteAdminSession(token);
     }
     ok(res, {});
